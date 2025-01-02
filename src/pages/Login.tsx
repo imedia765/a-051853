@@ -29,38 +29,39 @@ const Login = () => {
 
       // Create the email format we'll use
       const email = `${memberNumber.toLowerCase()}@temp.com`;
+      const password = memberNumber; // Using member number as password
       
-      // Try to sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: memberNumber,
+      // Try to sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      // If sign in fails because user doesn't exist, try to sign up
-      if (signInError?.message === 'Invalid login credentials') {
-        console.log('User not found, attempting signup...');
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: email,
-          password: memberNumber,
-          options: {
-            data: {
-              member_number: memberNumber,
+      if (signInError) {
+        // If sign in fails, try to sign up
+        if (signInError.message === 'Invalid login credentials') {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                member_number: memberNumber,
+              }
             }
-          }
-        });
+          });
 
-        if (signUpError) throw signUpError;
+          if (signUpError) throw signUpError;
 
-        // Try signing in again after successful signup
-        const { error: finalSignInError } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: memberNumber,
-        });
+          // After successful signup, try signing in again
+          const { error: finalSignInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
 
-        if (finalSignInError) throw finalSignInError;
-      } else if (signInError) {
-        // If it's any other error, throw it
-        throw signInError;
+          if (finalSignInError) throw finalSignInError;
+        } else {
+          throw signInError;
+        }
       }
 
       toast({

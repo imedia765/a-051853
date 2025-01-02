@@ -315,10 +315,9 @@ export type Database = {
             Returns: {
               id: string
               member_number: string
-              auth_user_id: string
               full_name: string
               email: string
-              role: string
+              role: Database["public"]["Enums"]["user_role"]
             }[]
           }
         | {
