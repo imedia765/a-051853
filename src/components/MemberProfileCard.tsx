@@ -3,13 +3,47 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Member } from "@/types/member";
 import { Users, ShieldCheck, UserCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MemberProfileCardProps {
   memberProfile: Member | null;
 }
 
 const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
-  const getRoleBadge = (role: string) => {
+  const { toast } = useToast();
+
+  // Fetch the user's role from members_roles table
+  const { data: userRole } = useQuery({
+    queryKey: ['userRole', memberProfile?.auth_user_id],
+    queryFn: async () => {
+      if (!memberProfile?.auth_user_id) return null;
+      
+      console.log('Fetching role for user:', memberProfile.auth_user_id);
+      
+      const { data, error } = await supabase.rpc(
+        'get_user_role',
+        { user_auth_id: memberProfile.auth_user_id }
+      );
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        toast({
+          title: "Error fetching role",
+          description: error.message,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      console.log('Fetched role:', data);
+      return data;
+    },
+    enabled: !!memberProfile?.auth_user_id
+  });
+
+  const getRoleBadge = (role: string | null) => {
     switch (role) {
       case 'admin':
         return (
@@ -121,7 +155,7 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
                       <span className="text-dashboard-accent2">Type:</span>
                       <span className="flex items-center gap-2">
                         {memberProfile?.membership_type || 'Standard'}
-                        {getRoleBadge(memberProfile?.role || 'member')}
+                        {getRoleBadge(userRole)}
                       </span>
                     </p>
                   </div>
