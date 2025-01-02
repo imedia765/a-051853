@@ -35,7 +35,11 @@ const SidePanel = ({ onTabChange, userRole }: SidePanelProps) => {
       }
     ];
 
-    return tabs.filter(tab => tab.roles.includes(userRole || 'member'));
+    // Only show tabs that the user has access to based on their role
+    return tabs.filter(tab => {
+      if (!userRole) return false;
+      return tab.roles.includes(userRole);
+    });
   };
 
   return (
