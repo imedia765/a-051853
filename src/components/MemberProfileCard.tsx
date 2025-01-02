@@ -14,8 +14,8 @@ interface MemberProfileCardProps {
 const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
   const { toast } = useToast();
 
-  // Fetch the user's role from members_roles table
-  const { data: userRole } = useQuery({
+  // Fetch the user's role from members_roles table using our RPC function
+  const { data: userRole, isError: roleError } = useQuery({
     queryKey: ['userRole', memberProfile?.auth_user_id],
     queryFn: async () => {
       if (!memberProfile?.auth_user_id) return null;
@@ -40,9 +40,11 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
       console.log('Fetched role:', data);
       return data;
     },
-    enabled: !!memberProfile?.auth_user_id
+    enabled: !!memberProfile?.auth_user_id,
+    retry: 1, // Only retry once if there's an error
   });
 
+  // Display role badge based on the role from members_roles
   const getRoleBadge = (role: string | null) => {
     switch (role) {
       case 'admin':
