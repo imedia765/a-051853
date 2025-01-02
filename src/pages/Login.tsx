@@ -16,20 +16,31 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('Starting login process for member:', memberNumber);
+      
       // First, check if the member exists in our database
       const { data: member, error: memberError } = await supabase.rpc(
         'authenticate_member',
         { p_member_number: memberNumber }
       );
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error('Member verification error:', memberError);
+        throw memberError;
+      }
+
       if (!member || member.length === 0) {
+        console.error('Member not found');
         throw new Error('Member not found');
       }
 
+      console.log('Member found:', member);
+
       // Create the email format we'll use
       const email = `${memberNumber.toLowerCase()}@temp.com`;
-      const password = memberNumber; // Using member number as password
+      const password = memberNumber;
+
+      console.log('Attempting sign in with:', { email });
       
       // Try to sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -38,8 +49,11 @@ const Login = () => {
       });
 
       if (signInError) {
+        console.error('Sign in error:', signInError);
+        
         // If sign in fails, try to sign up
         if (signInError.message === 'Invalid login credentials') {
+          console.log('Attempting signup for new user');
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
             password,
@@ -50,15 +64,23 @@ const Login = () => {
             }
           });
 
-          if (signUpError) throw signUpError;
+          if (signUpError) {
+            console.error('Signup error:', signUpError);
+            throw signUpError;
+          }
 
+          console.log('Signup successful, attempting final sign in');
+          
           // After successful signup, try signing in again
           const { error: finalSignInError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
 
-          if (finalSignInError) throw finalSignInError;
+          if (finalSignInError) {
+            console.error('Final sign in error:', finalSignInError);
+            throw finalSignInError;
+          }
         } else {
           throw signInError;
         }
