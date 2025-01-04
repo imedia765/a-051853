@@ -3,24 +3,51 @@ import { supabase } from "@/integrations/supabase/client";
 export const findMemberByNumber = async (memberNumber: string) => {
   console.log('Finding member with number:', memberNumber);
   
-  const { data: member, error } = await supabase
-    .from('members')
-    .select('id, member_number, auth_user_id')
-    .eq('member_number', memberNumber)
-    .maybeSingle();
-
-  console.log('Member search result:', { member, error });
+  // Normalize member number to uppercase and trim whitespace
+  const formattedMemberNumber = memberNumber.trim().toUpperCase();
   
-  if (error) {
-    console.error('Error finding member:', error);
+  try {
+    // First try exact match
+    const { data: member, error } = await supabase
+      .from('members')
+      .select('id, member_number, auth_user_id')
+      .eq('member_number', formattedMemberNumber)
+      .maybeSingle();
+
+    console.log('Member search result:', { member, error });
+    
+    if (error) {
+      console.error('Error finding member:', error);
+      throw error;
+    }
+
+    if (!member) {
+      // If no exact match, try case-insensitive search
+      const { data: fuzzyMember, error: fuzzyError } = await supabase
+        .from('members')
+        .select('id, member_number, auth_user_id')
+        .ilike('member_number', formattedMemberNumber)
+        .maybeSingle();
+
+      console.log('Fuzzy member search result:', { fuzzyMember, fuzzyError });
+
+      if (fuzzyError) {
+        console.error('Error in fuzzy search:', fuzzyError);
+        throw fuzzyError;
+      }
+
+      if (!fuzzyMember) {
+        throw new Error(`Member ${memberNumber} not found in our records. Please check your member number or contact support.`);
+      }
+
+      return fuzzyMember;
+    }
+
+    return member;
+  } catch (error) {
+    console.error('Error in findMemberByNumber:', error);
     throw error;
   }
-
-  if (!member) {
-    throw new Error(`Member ${memberNumber} not found in our records. Please check your member number or contact support.`);
-  }
-
-  return member;
 };
 
 export const loginOrSignupMember = async (memberNumber: string) => {
