@@ -39,29 +39,72 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
     enabled: !!memberProfile.id
   });
 
-  // Then check user_roles table
+  // Then check user_roles table, prioritizing admin role
   const { data: roleFromTable } = useQuery({
     queryKey: ['userRole', memberProfile.auth_user_id],
     queryFn: async () => {
       if (!memberProfile.auth_user_id) return null;
       
       console.log('Checking user_roles for:', memberProfile.auth_user_id);
-      const { data, error } = await supabase
+      
+      // First check for admin role
+      const { data: adminRole, error: adminError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', memberProfile.auth_user_id)
+        .eq('role', 'admin')
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching role from user_roles:', error);
+      if (adminError) {
+        console.error('Error checking admin role:', adminError);
         return null;
       }
 
-      console.log('Role from user_roles:', data?.role);
-      return data?.role;
+      if (adminRole) {
+        console.log('User is an admin');
+        return 'admin';
+      }
+
+      // If not admin, check for collector role
+      const { data: collectorRole, error: collectorError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', memberProfile.auth_user_id)
+        .eq('role', 'collector')
+        .maybeSingle();
+
+      if (collectorError) {
+        console.error('Error checking collector role:', collectorError);
+        return null;
+      }
+
+      if (collectorRole) {
+        console.log('User is a collector');
+        return 'collector';
+      }
+
+      // Finally check for member role
+      const { data: memberRole, error: memberError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', memberProfile.auth_user_id)
+        .eq('role', 'member')
+        .maybeSingle();
+
+      if (memberError) {
+        console.error('Error checking member role:', memberError);
+        return null;
+      }
+
+      if (memberRole) {
+        console.log('User is a member');
+        return 'member';
+      }
+
+      return null;
     },
     enabled: !!memberProfile.auth_user_id,
-    retry: false // Don't retry on 406 errors
+    retry: false
   });
 
   // Determine final role
