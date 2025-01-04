@@ -29,15 +29,7 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
       if (userRole === 'collector') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: collectorProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('auth_user_id', user.id)
-            .single();
-          
-          if (collectorProfile) {
-            query = query.eq('collector', collectorProfile.full_name);
-          }
+          query = query.eq('collector_id', user.id);
         }
       }
       
@@ -123,8 +115,8 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
                     <p className="text-dashboard-text">{member.collector || 'Not assigned'}</p>
                   </div>
                   <div>
-                    <p className="text-dashboard-muted mb-1">Registration Status</p>
-                    <p className="text-dashboard-text">{member.registration_status || 'Pending'}</p>
+                    <p className="text-dashboard-muted mb-1">Status</p>
+                    <p className="text-dashboard-text">{member.status || 'Pending'}</p>
                   </div>
                 </div>
               </div>

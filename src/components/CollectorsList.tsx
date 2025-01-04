@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from '@/integrations/supabase/types';
-import { UserCheck, Users } from 'lucide-react';
+import { UserCheck, Users, CreditCard, Link2, AlertCircle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -45,7 +45,9 @@ const CollectorsList = () => {
           phone,
           active,
           created_at,
-          updated_at
+          updated_at,
+          member_profile_id,
+          collector_profile_id
         `)
         .order('number', { ascending: true });
       
@@ -59,10 +61,23 @@ const CollectorsList = () => {
           .from('members')
           .select('*', { count: 'exact', head: true })
           .eq('collector', collector.name);
+
+        // Only fetch member number if member_profile_id exists
+        let memberNumber = null;
+        if (collector.member_profile_id) {
+          const { data: memberData } = await supabase
+            .from('members')
+            .select('member_number')
+            .eq('id', collector.member_profile_id)
+            .maybeSingle();
+          
+          memberNumber = memberData?.member_number || null;
+        }
         
         return {
           ...collector,
-          memberCount: count || 0
+          memberCount: count || 0,
+          memberNumber
         };
       }) || []);
 
@@ -119,6 +134,17 @@ const CollectorsList = () => {
                       <UserCheck className="w-4 h-4" />
                       <span>Collector</span>
                       <span className="text-purple-400">({collector.memberCount} members)</span>
+                      {collector.memberNumber ? (
+                        <span className="flex items-center gap-1 text-green-400">
+                          <Link2 className="w-3 h-3" />
+                          Member #{collector.memberNumber}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-yellow-400">
+                          <AlertCircle className="w-3 h-3" />
+                          No member number linked
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

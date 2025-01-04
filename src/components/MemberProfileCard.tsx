@@ -1,50 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Member } from "@/types/member";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import ProfileHeader from "./profile/ProfileHeader";
 import ProfileAvatar from "./profile/ProfileAvatar";
 import ContactInfo from "./profile/ContactInfo";
 import AddressDetails from "./profile/AddressDetails";
 import MembershipDetails from "./profile/MembershipDetails";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 interface MemberProfileCardProps {
   memberProfile: Member | null;
 }
 
 const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
-  const { toast } = useToast();
-
-  // Fetch the user's role from members_roles table using our RPC function
-  const { data: userRole, isError: roleError } = useQuery({
-    queryKey: ['userRole', memberProfile?.auth_user_id],
-    queryFn: async () => {
-      if (!memberProfile?.auth_user_id) return null;
-      
-      console.log('Fetching role for user:', memberProfile.auth_user_id);
-      
-      const { data, error } = await supabase.rpc(
-        'get_user_role',
-        { user_auth_id: memberProfile.auth_user_id }
-      );
-
-      if (error) {
-        console.error('Error fetching user role:', error);
-        toast({
-          title: "Error fetching role",
-          description: error.message,
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      console.log('Fetched role:', data);
-      return data;
-    },
-    enabled: !!memberProfile?.auth_user_id,
-    retry: 1,
-  });
+  const { userRole } = useRoleAccess();
 
   if (!memberProfile) {
     return (

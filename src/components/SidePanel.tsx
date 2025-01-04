@@ -1,9 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Settings, Users, UserCheck } from "lucide-react";
+import { UserRole } from "@/hooks/useRoleAccess";
 
 interface SidePanelProps {
   onTabChange: (value: string) => void;
-  userRole: string | null;
+  userRole: UserRole;
 }
 
 const SidePanel = ({ onTabChange, userRole }: SidePanelProps) => {
@@ -17,7 +18,7 @@ const SidePanel = ({ onTabChange, userRole }: SidePanelProps) => {
       },
       {
         value: 'users',
-        label: 'Users',
+        label: 'Members',
         icon: Users,
         roles: ['collector', 'admin']
       },
