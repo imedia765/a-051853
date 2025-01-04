@@ -16,67 +16,72 @@ export const useLoginForm = () => {
     e.preventDefault();
     setLoading(true);
 
-    const maxRetries = 3;
-    let currentTry = 0;
-    const formattedMemberNumber = memberNumber.trim().toUpperCase();
+    try {
+      // First clear any existing session
+      await supabase.auth.signOut();
+      
+      const maxRetries = 3;
+      let currentTry = 0;
+      const formattedMemberNumber = memberNumber.trim().toUpperCase();
 
-    while (currentTry < maxRetries) {
-      try {
-        // First verify member exists
-        const member = await findMemberByNumber(formattedMemberNumber);
-        
-        // Then attempt login/signup
-        const authData = await loginOrSignupMember(formattedMemberNumber);
+      while (currentTry < maxRetries) {
+        try {
+          // First verify member exists
+          const member = await findMemberByNumber(formattedMemberNumber);
+          
+          // Then attempt login/signup
+          const authData = await loginOrSignupMember(formattedMemberNumber);
 
-        // If we have a user and they're new, update their member record
-        if (authData.user && member && !member.auth_user_id) {
-          const { error: updateError } = await supabase
-            .from('members')
-            .update({ auth_user_id: authData.user.id })
-            .eq('id', member.id);
+          // If we have a user and they're new, update their member record
+          if (authData.user && member && !member.auth_user_id) {
+            const { error: updateError } = await supabase
+              .from('members')
+              .update({ auth_user_id: authData.user.id })
+              .eq('id', member.id);
 
-          if (updateError) {
-            console.error('Error updating member with auth_user_id:', updateError);
-            throw updateError;
+            if (updateError) {
+              console.error('Error updating member with auth_user_id:', updateError);
+              throw updateError;
+            }
           }
-        }
 
-        // Verify session is established
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('Failed to establish session');
-        }
+          // Verify session is established
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            throw new Error('Failed to establish session');
+          }
 
-        await queryClient.invalidateQueries();
-        
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-        });
-
-        navigate('/');
-        return;
-
-      } catch (error: any) {
-        console.error(`Login attempt ${currentTry + 1} failed:`, error);
-        currentTry++;
-        
-        if (currentTry === maxRetries) {
-          await supabase.auth.signOut();
+          await queryClient.invalidateQueries();
           
           toast({
-            title: "Login failed",
-            description: error.message || "Please try again later. If the problem persists, contact support.",
-            variant: "destructive",
+            title: "Login successful",
+            description: "Welcome back!",
           });
-        } else {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, currentTry) * 1000));
-          console.log(`Retrying login... Attempt ${currentTry + 1} of ${maxRetries}`);
+
+          navigate('/');
+          return;
+
+        } catch (error: any) {
+          console.error(`Login attempt ${currentTry + 1} failed:`, error);
+          currentTry++;
+          
+          if (currentTry === maxRetries) {
+            await supabase.auth.signOut();
+            
+            toast({
+              title: "Login failed",
+              description: error.message || "Please try again later. If the problem persists, contact support.",
+              variant: "destructive",
+            });
+          } else {
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, currentTry) * 1000));
+            console.log(`Retrying login... Attempt ${currentTry + 1} of ${maxRetries}`);
+          }
         }
       }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return {
