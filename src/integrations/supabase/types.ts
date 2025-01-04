@@ -216,7 +216,7 @@ export type Database = {
           {
             foreignKeyName: "members_collectors_member_profile_id_fkey"
             columns: ["member_profile_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
