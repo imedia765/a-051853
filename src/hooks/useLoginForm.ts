@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const useLoginForm = () => {
   const [memberNumber, setMemberNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -15,6 +16,7 @@ export const useLoginForm = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       // First clear any existing session
@@ -67,6 +69,7 @@ export const useLoginForm = () => {
           
           if (currentTry === maxRetries) {
             await supabase.auth.signOut();
+            setError(error.message || "Please try again later. If the problem persists, contact support.");
             
             toast({
               title: "Login failed",
@@ -88,6 +91,7 @@ export const useLoginForm = () => {
     memberNumber,
     setMemberNumber,
     loading,
+    error,
     handleLogin
   };
 };
