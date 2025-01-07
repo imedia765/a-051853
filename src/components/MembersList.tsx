@@ -1,130 +1,165 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from '@/integrations/supabase/types';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
-type Member = Database['public']['Tables']['members']['Row'];
+import { Accordion } from "@/components/ui/accordion";
+import { useState } from "react";
+import CollectorPaymentSummary from './CollectorPaymentSummary';
+import MemberCard from './members/MemberCard';
+import PaymentDialog from './members/PaymentDialog';
+import { Member } from '@/types/member';
+import { useToast } from "@/components/ui/use-toast";
+import { generateMembersPDF } from '@/utils/pdfGenerator';
+import MembersListHeader from './members/MembersListHeader';
 
 interface MembersListProps {
   searchTerm: string;
   userRole: string | null;
 }
 
+const ITEMS_PER_PAGE = 7;
+
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
-  const { data: members, isLoading, error } = useQuery({
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const { data: collectorInfo } = useQuery({
+    queryKey: ['collector-info'],
+    queryFn: async () => {
+      if (userRole !== 'collector') return null;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: collectorData } = await supabase
+        .from('members_collectors')
+        .select('name')
+        .eq('member_number', user.user_metadata.member_number)
+        .single();
+
+      return collectorData;
+    },
+    enabled: userRole === 'collector',
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: membersData, isLoading } = useQuery({
     queryKey: ['members', searchTerm, userRole],
     queryFn: async () => {
-      console.log('Fetching members...');
+      console.log('Fetching members with search term:', searchTerm);
       let query = supabase
         .from('members')
-        .select('*');
+        .select('*', { count: 'exact' });
       
       if (searchTerm) {
         query = query.or(`full_name.ilike.%${searchTerm}%,member_number.ilike.%${searchTerm}%,collector.ilike.%${searchTerm}%`);
       }
 
-      // If user is a collector, only show their assigned members
       if (userRole === 'collector') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          query = query.eq('collector_id', user.id);
+          const { data: collectorData } = await supabase
+            .from('members_collectors')
+            .select('name')
+            .eq('member_number', user.user_metadata.member_number)
+            .single();
+
+          if (collectorData?.name) {
+            console.log('Filtering members for collector:', collectorData.name);
+            query = query.eq('collector', collectorData.name);
+          }
         }
       }
       
-      const { data, error } = await query
-        .order('created_at', { ascending: false });
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(ITEMS_PER_PAGE);
       
       if (error) {
         console.error('Error fetching members:', error);
         throw error;
       }
       
-      return data as Member[];
+      return {
+        members: data as Member[],
+        totalCount: count || 0
+      };
     },
+    staleTime: 30 * 1000,
   });
 
-  if (isLoading) return <div className="text-center py-4">Loading members...</div>;
-  if (error) return <div className="text-center py-4 text-red-500">Error loading members: {error.message}</div>;
-  if (!members?.length) return <div className="text-center py-4">No members found</div>;
+  const members = membersData?.members || [];
+  const selectedMember = members?.find(m => m.id === selectedMemberId);
+
+  const handlePrintMembers = () => {
+    if (!members?.length || !collectorInfo?.name) {
+      toast({
+        title: "Error",
+        description: "No members available to print",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const doc = generateMembersPDF(members, `Members List - Collector: ${collectorInfo.name}`);
+      doc.save();
+      toast({
+        title: "Success",
+        description: "PDF report generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <ScrollArea className="h-[600px] w-full rounded-md">
-      <Accordion type="single" collapsible className="space-y-4">
-        {members.map((member) => (
-          <AccordionItem 
-            key={member.id} 
-            value={member.id}
-            className="bg-dashboard-card border-white/10 shadow-lg hover:border-dashboard-accent1/50 transition-all duration-300 p-6 rounded-lg border"
-          >
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-6 w-full">
-                <Avatar className="h-16 w-16 border-2 border-dashboard-accent1/20">
-                  <AvatarFallback className="bg-dashboard-accent1/20 text-lg text-dashboard-accent1">
-                    {member.full_name?.charAt(0) || 'M'}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <h3 className="text-xl font-medium text-dashboard-accent2 mb-1">{member.full_name}</h3>
-                    <p className="bg-dashboard-accent1/10 px-3 py-1 rounded-full inline-flex items-center">
-                      <span className="text-dashboard-accent1">Member #</span>
-                      <span className="text-dashboard-accent2 font-medium ml-1">{member.member_number}</span>
-                    </p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-sm ${
-                    member.status === 'active' 
-                      ? 'bg-dashboard-accent3/20 text-dashboard-accent3' 
-                      : 'bg-dashboard-muted/20 text-dashboard-muted'
-                  }`}>
-                    {member.status || 'Pending'}
-                  </div>
-                </div>
-              </div>
-            </AccordionTrigger>
-            
-            <AccordionContent>
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-dashboard-muted mb-1">Contact Information</p>
-                  <p className="text-dashboard-text">{member.email || 'No email provided'}</p>
-                  <p className="text-dashboard-text">{member.phone || 'No phone provided'}</p>
-                </div>
-                <div>
-                  <p className="text-dashboard-muted mb-1">Address</p>
-                  <div className="bg-white/5 p-3 rounded-lg">
-                    <p className="text-dashboard-text">
-                      {member.address || 'No address provided'}
-                      {member.town && `, ${member.town}`}
-                      {member.postcode && ` ${member.postcode}`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-dashboard-muted mb-1">Membership Type</p>
-                    <p className="text-dashboard-text">{member.membership_type || 'Standard'}</p>
-                  </div>
-                  <div>
-                    <p className="text-dashboard-muted mb-1">Collector</p>
-                    <p className="text-dashboard-text">{member.collector || 'Not assigned'}</p>
-                  </div>
-                  <div>
-                    <p className="text-dashboard-muted mb-1">Status</p>
-                    <p className="text-dashboard-text">{member.status || 'Pending'}</p>
-                  </div>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-    </ScrollArea>
+    <div className="space-y-6">
+      <MembersListHeader 
+        userRole={userRole}
+        onPrint={handlePrintMembers}
+        hasMembers={members.length > 0}
+        collectorInfo={collectorInfo}
+      />
+
+      <ScrollArea className="h-[600px] w-full rounded-md">
+        {isLoading ? (
+          <div className="flex justify-center items-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dashboard-accent1"></div>
+          </div>
+        ) : (
+          <Accordion type="single" collapsible className="space-y-4">
+            {members?.map((member) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                userRole={userRole}
+                onPaymentClick={() => setSelectedMemberId(member.id)}
+              />
+            ))}
+          </Accordion>
+        )}
+      </ScrollArea>
+
+      {selectedMember && (
+        <PaymentDialog
+          isOpen={!!selectedMemberId}
+          onClose={() => setSelectedMemberId(null)}
+          memberId={selectedMember.id}
+          memberNumber={selectedMember.member_number}
+          memberName={selectedMember.full_name}
+          collectorInfo={collectorInfo}
+        />
+      )}
+
+      {userRole === 'collector' && collectorInfo && (
+        <CollectorPaymentSummary collectorName={collectorInfo.name} />
+      )}
+    </div>
   );
 };
 

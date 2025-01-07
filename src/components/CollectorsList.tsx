@@ -8,7 +8,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import TotalCount from "@/components/TotalCount";
 import CollectorMembers from "@/components/CollectorMembers";
 import PrintButtons from "@/components/PrintButtons";
 
@@ -46,8 +45,7 @@ const CollectorsList = () => {
           active,
           created_at,
           updated_at,
-          member_profile_id,
-          collector_profile_id
+          member_number
         `)
         .order('number', { ascending: true });
       
@@ -56,37 +54,24 @@ const CollectorsList = () => {
         throw collectorsError;
       }
 
-      const collectorsWithCounts = await Promise.all(collectorsData?.map(async (collector) => {
+      if (!collectorsData) return [];
+
+      // Get member count for each collector
+      const collectorsWithCounts = await Promise.all(collectorsData.map(async (collector) => {
         const { count } = await supabase
           .from('members')
           .select('*', { count: 'exact', head: true })
           .eq('collector', collector.name);
 
-        // Only fetch member number if member_profile_id exists
-        let memberNumber = null;
-        if (collector.member_profile_id) {
-          const { data: memberData } = await supabase
-            .from('members')
-            .select('member_number')
-            .eq('id', collector.member_profile_id)
-            .maybeSingle();
-          
-          memberNumber = memberData?.member_number || null;
-        }
-        
         return {
           ...collector,
-          memberCount: count || 0,
-          memberNumber
+          memberCount: count || 0
         };
-      }) || []);
+      }));
 
       return collectorsWithCounts;
     },
   });
-
-  // Calculate total members across all collectors
-  const totalMembers = collectors?.reduce((total, collector) => total + (collector.memberCount || 0), 0) || 0;
 
   if (collectorsLoading) return <div className="text-center py-4">Loading collectors...</div>;
   if (collectorsError) return <div className="text-center py-4 text-red-500">Error loading collectors: {collectorsError.message}</div>;
@@ -94,20 +79,6 @@ const CollectorsList = () => {
 
   return (
     <div className="space-y-4">
-      <TotalCount 
-        items={[
-          {
-            count: totalMembers,
-            label: "Total Members",
-            icon: <Users className="w-6 h-6 text-blue-400" />
-          },
-          {
-            count: collectors.length,
-            label: "Total Collectors",
-            icon: <UserCheck className="w-6 h-6 text-purple-400" />
-          }
-        ]}
-      />
       <div className="flex justify-end mb-4">
         <PrintButtons allMembers={allMembers} />
       </div>
@@ -134,17 +105,6 @@ const CollectorsList = () => {
                       <UserCheck className="w-4 h-4" />
                       <span>Collector</span>
                       <span className="text-purple-400">({collector.memberCount} members)</span>
-                      {collector.memberNumber ? (
-                        <span className="flex items-center gap-1 text-green-400">
-                          <Link2 className="w-3 h-3" />
-                          Member #{collector.memberNumber}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-yellow-400">
-                          <AlertCircle className="w-3 h-3" />
-                          No member number linked
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
