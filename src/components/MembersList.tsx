@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion } from "@/components/ui/accordion";
@@ -6,9 +6,9 @@ import { useState } from "react";
 import CollectorPaymentSummary from './CollectorPaymentSummary';
 import MemberCard from './members/MemberCard';
 import PaymentDialog from './members/PaymentDialog';
-import { Member } from '@/types/member';
+import { Member } from "@/types/member";
 import { useToast } from "@/components/ui/use-toast";
-import { generateMembersPDF } from '@/utils/pdfGenerator';
+import { generateMembersPDF } from "@/utils/pdfGenerator";
 import MembersListHeader from './members/MembersListHeader';
 
 interface MembersListProps {
@@ -21,6 +21,7 @@ const ITEMS_PER_PAGE = 7;
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: collectorInfo } = useQuery({
     queryKey: ['collector-info'],
@@ -42,7 +43,7 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: membersData, isLoading } = useQuery({
+  const { data: membersData, isLoading, refetch } = useQuery({
     queryKey: ['members', searchTerm, userRole],
     queryFn: async () => {
       console.log('Fetching members with search term:', searchTerm);
@@ -116,6 +117,11 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
     }
   };
 
+  const handleProfileUpdated = () => {
+    refetch();
+    setSelectedMemberId(null);
+  };
+
   return (
     <div className="space-y-6">
       <MembersListHeader 
@@ -123,6 +129,8 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
         onPrint={handlePrintMembers}
         hasMembers={members.length > 0}
         collectorInfo={collectorInfo}
+        selectedMember={selectedMember}
+        onProfileUpdated={handleProfileUpdated}
       />
 
       <ScrollArea className="h-[600px] w-full rounded-md">
