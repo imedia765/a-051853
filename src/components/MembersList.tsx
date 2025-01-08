@@ -6,6 +6,7 @@ import { useState } from "react";
 import CollectorPaymentSummary from './CollectorPaymentSummary';
 import MemberCard from './members/MemberCard';
 import PaymentDialog from './members/PaymentDialog';
+import EditProfileDialog from './members/EditProfileDialog';
 import { Member } from "@/types/member";
 import { useToast } from "@/components/ui/use-toast";
 import { generateMembersPDF } from "@/utils/pdfGenerator";
@@ -20,6 +21,8 @@ const ITEMS_PER_PAGE = 7;
 
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -120,6 +123,17 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   const handleProfileUpdated = () => {
     refetch();
     setSelectedMemberId(null);
+    setIsEditProfileDialogOpen(false);
+  };
+
+  const handlePaymentClick = (memberId: string) => {
+    setSelectedMemberId(memberId);
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handleEditClick = (memberId: string) => {
+    setSelectedMemberId(memberId);
+    setIsEditProfileDialogOpen(true);
   };
 
   return (
@@ -145,22 +159,37 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
                 key={member.id}
                 member={member}
                 userRole={userRole}
-                onPaymentClick={() => setSelectedMemberId(member.id)}
-                onEditClick={() => setSelectedMemberId(member.id)}
+                onPaymentClick={() => handlePaymentClick(member.id)}
+                onEditClick={() => handleEditClick(member.id)}
               />
             ))}
           </Accordion>
         )}
       </ScrollArea>
 
-      {selectedMember && (
+      {selectedMember && isPaymentDialogOpen && (
         <PaymentDialog
-          isOpen={!!selectedMemberId}
-          onClose={() => setSelectedMemberId(null)}
+          isOpen={isPaymentDialogOpen}
+          onClose={() => {
+            setIsPaymentDialogOpen(false);
+            setSelectedMemberId(null);
+          }}
           memberId={selectedMember.id}
           memberNumber={selectedMember.member_number}
           memberName={selectedMember.full_name}
           collectorInfo={collectorInfo}
+        />
+      )}
+
+      {selectedMember && isEditProfileDialogOpen && (
+        <EditProfileDialog
+          member={selectedMember}
+          open={isEditProfileDialogOpen}
+          onOpenChange={(open) => {
+            setIsEditProfileDialogOpen(open);
+            if (!open) setSelectedMemberId(null);
+          }}
+          onProfileUpdated={handleProfileUpdated}
         />
       )}
 
