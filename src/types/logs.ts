@@ -3,7 +3,9 @@ export type LogTab = 'audit' | 'monitoring';
 export interface MonitoringLog {
   id: string;
   timestamp: string;
-  event: string;
+  event_type: 'system_performance' | 'api_latency' | 'error_rate' | 'user_activity' | 'resource_usage';
+  metric_name: string;
+  metric_value: number;
   details: string;
   severity: 'info' | 'warning' | 'error' | 'critical';
 }
