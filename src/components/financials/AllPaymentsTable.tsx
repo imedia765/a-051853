@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -23,22 +24,56 @@ const AllPaymentsTable = ({ showHistory = false }: AllPaymentsTableProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: payments, isLoading } = useQuery({
-    queryKey: ['payment-requests'],
+  const [page, setPage] = React.useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState<number>(10);
+
+  const { data: paymentsData, isLoading } = useQuery({
+    queryKey: ['payment-requests', page, itemsPerPage],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const from = (page - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
+      // Get paginated payment data
+      const { data, error, count } = await supabase
         .from('payment_requests')
         .select(`
           *,
           members!payment_requests_member_id_fkey(full_name),
           collectors:members_collectors(name)
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact', head: false })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+        .limit(null);
 
       if (error) throw error;
-      return data;
+
+      // Get total member count
+      const { count: totalMembers } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true });
+
+      // Calculate totals based on actual member count
+      const yearlyFee = 40;
+      const totalExpected = (totalMembers || 0) * yearlyFee;
+      const totalCollected = (data || [])
+        .filter(p => p.status === 'approved')
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      const remainingToCollect = totalExpected - totalCollected;
+
+      return {
+        data,
+        count,
+        totals: {
+          totalExpected,
+          totalCollected,
+          remainingToCollect
+        }
+      };
     },
   });
+
+  const totalPages = Math.ceil((paymentsData?.count || 0) / itemsPerPage);
+  const payments = paymentsData?.data || [];
 
   const handleApproval = async (paymentId: string, approved: boolean) => {
     try {
@@ -75,7 +110,7 @@ const AllPaymentsTable = ({ showHistory = false }: AllPaymentsTableProps) => {
   }
 
   return (
-    <Card className="bg-dashboard-card border-dashboard-accent1/20">
+    <Card className="bg-dashboard-card border-dashboard-accent1/20 rounded-lg">
       <div className="p-6">
         <h2 className="text-xl font-medium text-white mb-4">Payment History & Approvals</h2>
         <div className="rounded-md border border-white/10">
