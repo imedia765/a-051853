@@ -119,40 +119,40 @@ const EditProfileDialog = ({ member, open, onOpenChange, onProfileUpdated }: Edi
             />
           </div>
 
+          {/* Read-only fields with purple styling */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="membership_type" className="text-right text-dashboard-text">
               Membership Type
             </Label>
-            <Input
-              id="membership_type"
-              value={formData.membership_type}
-              onChange={(e) => setFormData({...formData, membership_type: e.target.value})}
-              className="col-span-3 bg-dashboard-dark text-white border-dashboard-accent1/20"
-            />
+            <div className="col-span-3 px-3 py-2 rounded-md bg-dashboard-accent1/10 text-dashboard-accent1 border border-dashboard-accent1/20">
+              {member.membership_type || 'Not Set'}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="status" className="text-right text-dashboard-text">
               Status
             </Label>
-            <Input
-              id="status"
-              value={formData.status}
-              onChange={(e) => setFormData({...formData, status: e.target.value})}
-              className="col-span-3 bg-dashboard-dark text-white border-dashboard-accent1/20"
-            />
+            <div className="col-span-3 px-3 py-2 rounded-md bg-dashboard-accent1/10 text-dashboard-accent1 border border-dashboard-accent1/20">
+              {member.status || 'Not Set'}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="collector" className="text-right text-dashboard-text">
               Collector
             </Label>
-            <Input
-              id="collector"
-              value={formData.collector}
-              onChange={(e) => setFormData({...formData, collector: e.target.value})}
-              className="col-span-3 bg-dashboard-dark text-white border-dashboard-accent1/20"
-            />
+            <div className="col-span-3 px-3 py-2 rounded-md bg-dashboard-accent1/10 text-dashboard-accent1 border border-dashboard-accent1/20">
+              {member.collector || 'Not Assigned'}
+            </div>
+          </div>
+
+          {/* Member number display */}
+          <div className="mt-4 text-center border-t border-dashboard-accent1/20 pt-4">
+            <div className="text-sm text-dashboard-muted">Member Number</div>
+            <div className="text-2xl font-semibold text-dashboard-accent2">
+              {member.member_number}
+            </div>
           </div>
         </div>
 
