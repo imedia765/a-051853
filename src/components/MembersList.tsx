@@ -146,6 +146,7 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
                 member={member}
                 userRole={userRole}
                 onPaymentClick={() => setSelectedMemberId(member.id)}
+                onEditClick={() => setSelectedMemberId(member.id)}
               />
             ))}
           </Accordion>
