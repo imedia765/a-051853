@@ -1,30 +1,29 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion } from "@/components/ui/accordion";
 import { useState } from "react";
 import CollectorPaymentSummary from './CollectorPaymentSummary';
-import MemberCard from './members/MemberCard';
+import CollectorMemberPayments from './members/CollectorMemberPayments';
 import PaymentDialog from './members/PaymentDialog';
 import EditProfileDialog from './members/EditProfileDialog';
 import { Member } from "@/types/member";
 import { useToast } from "@/components/ui/use-toast";
-import { generateMembersPDF } from "@/utils/pdfGenerator";
 import MembersListHeader from './members/MembersListHeader';
+import MembersListContent from './members/MembersListContent';
+import { DashboardTabs, DashboardTabsList, DashboardTabsTrigger, DashboardTabsContent } from "@/components/ui/dashboard-tabs";
 
 interface MembersListProps {
   searchTerm: string;
   userRole: string | null;
 }
 
-const ITEMS_PER_PAGE = 7;
+const ITEMS_PER_PAGE = 20;
 
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: collectorInfo } = useQuery({
     queryKey: ['collector-info'],
@@ -36,7 +35,7 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
 
       const { data: collectorData } = await supabase
         .from('members_collectors')
-        .select('name')
+        .select('id, name, phone, prefix, number, email, active, created_at, updated_at')
         .eq('member_number', user.user_metadata.member_number)
         .single();
 
@@ -47,9 +46,12 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   });
 
   const { data: membersData, isLoading, refetch } = useQuery({
-    queryKey: ['members', searchTerm, userRole],
+    queryKey: ['members', searchTerm, userRole, page],
     queryFn: async () => {
       console.log('Fetching members with search term:', searchTerm);
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
       let query = supabase
         .from('members')
         .select('*', { count: 'exact' });
@@ -75,7 +77,8 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
       }
       
       const { data, count, error } = await query
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
       
       if (error) {
         console.error('Error fetching members:', error);
@@ -91,34 +94,8 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   });
 
   const members = membersData?.members || [];
+  const totalPages = Math.ceil((membersData?.totalCount || 0) / ITEMS_PER_PAGE);
   const selectedMember = members?.find(m => m.id === selectedMemberId);
-
-  const handlePrintMembers = () => {
-    if (!members?.length || !collectorInfo?.name) {
-      toast({
-        title: "Error",
-        description: "No members available to print",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const doc = generateMembersPDF(members, `Members List - Collector: ${collectorInfo.name}`);
-      doc.save();
-      toast({
-        title: "Success",
-        description: "PDF report generated successfully",
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate PDF report",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleProfileUpdated = () => {
     refetch();
@@ -137,35 +114,65 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full px-2 sm:px-0 space-y-4 sm:space-y-6">
       <MembersListHeader 
         userRole={userRole}
-        onPrint={handlePrintMembers}
         hasMembers={members.length > 0}
         collectorInfo={collectorInfo}
         selectedMember={selectedMember}
         onProfileUpdated={handleProfileUpdated}
+        onPrint={() => {}}
+        members={members}
       />
 
-      <ScrollArea className="h-[600px] w-full rounded-md">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dashboard-accent1"></div>
-          </div>
-        ) : (
-          <Accordion type="single" collapsible className="space-y-4">
-            {members?.map((member) => (
-              <MemberCard
-                key={member.id}
-                member={member}
-                userRole={userRole}
-                onPaymentClick={() => handlePaymentClick(member.id)}
-                onEditClick={() => handleEditClick(member.id)}
-              />
-            ))}
-          </Accordion>
+      <DashboardTabs defaultValue="summary" className="w-full">
+        <DashboardTabsList className="w-full grid grid-cols-1 sm:grid-cols-3 gap-0">
+          {userRole === 'collector' && (
+            <>
+              <DashboardTabsTrigger value="summary" className="w-full">
+                Summary
+              </DashboardTabsTrigger>
+              <DashboardTabsTrigger value="payments" className="w-full">
+                Payments
+              </DashboardTabsTrigger>
+            </>
+          )}
+          <DashboardTabsTrigger value="members" className="w-full">
+            Members List
+          </DashboardTabsTrigger>
+        </DashboardTabsList>
+
+        {userRole === 'collector' && collectorInfo && (
+          <>
+            <DashboardTabsContent value="summary">
+              <div className="overflow-hidden">
+                <CollectorPaymentSummary collectorName={collectorInfo.name} />
+              </div>
+            </DashboardTabsContent>
+
+            <DashboardTabsContent value="payments">
+              <div className="overflow-hidden">
+                <CollectorMemberPayments collectorName={collectorInfo.name} />
+              </div>
+            </DashboardTabsContent>
+          </>
         )}
-      </ScrollArea>
+
+        <DashboardTabsContent value="members">
+          <div className="overflow-hidden">
+            <MembersListContent
+              members={members}
+              isLoading={isLoading}
+              userRole={userRole}
+              onPaymentClick={handlePaymentClick}
+              onEditClick={handleEditClick}
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
+        </DashboardTabsContent>
+      </DashboardTabs>
 
       {selectedMember && isPaymentDialogOpen && (
         <PaymentDialog
@@ -191,10 +198,6 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
           }}
           onProfileUpdated={handleProfileUpdated}
         />
-      )}
-
-      {userRole === 'collector' && collectorInfo && (
-        <CollectorPaymentSummary collectorName={collectorInfo.name} />
       )}
     </div>
   );
