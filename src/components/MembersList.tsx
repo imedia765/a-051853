@@ -10,7 +10,6 @@ import { useToast } from "@/components/ui/use-toast";
 import MembersListHeader from './members/MembersListHeader';
 import MembersListContent from './members/MembersListContent';
 import { DashboardTabs, DashboardTabsList, DashboardTabsTrigger, DashboardTabsContent } from "@/components/ui/dashboard-tabs";
-import FamilyMembersList from './members/FamilyMembersList';
 
 interface MembersListProps {
   searchTerm: string;
@@ -141,11 +140,6 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
           <DashboardTabsTrigger value="members" className="w-full">
             Members List
           </DashboardTabsTrigger>
-          {userRole === 'admin' && (
-            <DashboardTabsTrigger value="family" className="w-full">
-              Family Members
-            </DashboardTabsTrigger>
-          )}
         </DashboardTabsList>
 
         {userRole === 'collector' && collectorInfo && (
@@ -178,14 +172,6 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
             />
           </div>
         </DashboardTabsContent>
-
-        {userRole === 'admin' && (
-          <DashboardTabsContent value="family">
-            <div className="overflow-hidden">
-              <FamilyMembersList members={members} />
-            </div>
-          </DashboardTabsContent>
-        )}
       </DashboardTabs>
 
       {selectedMember && isPaymentDialogOpen && (
