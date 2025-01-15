@@ -98,19 +98,19 @@ const MemberStatsView = () => {
           title="Total Members"
           value={stats?.total || 0}
           color="#22c55e"
-          details="Total number of members and family members"
+          details={`£${(stats?.total || 0) * 40} total yearly contributions`}
         />
         <MetricCard
           title="Direct Members"
           value={stats?.members.total || 0}
           color="#3b82f6"
-          details="Number of primary members"
+          details={`£${(stats?.members.total || 0) * 40} yearly contributions`}
         />
         <MetricCard
           title="Family Members"
           value={stats?.family.total || 0}
           color="#8b5cf6"
-          details="Number of registered family members"
+          details={`£${(stats?.family.total || 0) * 40} yearly contributions`}
         />
       </div>
 
@@ -121,10 +121,12 @@ const MemberStatsView = () => {
             <div className="text-center p-4 bg-blue-500/10 rounded-lg">
               <p className="text-blue-400 text-sm">Men</p>
               <p className="text-2xl font-bold text-blue-500">{stats?.totalMen || 0}</p>
+              <p className="text-sm text-blue-400/80">£{(stats?.totalMen || 0) * 40} yearly</p>
             </div>
             <div className="text-center p-4 bg-pink-500/10 rounded-lg">
               <p className="text-pink-400 text-sm">Women</p>
               <p className="text-2xl font-bold text-pink-500">{stats?.totalWomen || 0}</p>
+              <p className="text-sm text-pink-400/80">£{(stats?.totalWomen || 0) * 40} yearly</p>
             </div>
           </div>
         </Card>
@@ -132,14 +134,16 @@ const MemberStatsView = () => {
         <Card className="p-6 bg-dashboard-card/50 border-dashboard-cardBorder">
           <h3 className="text-lg font-medium text-white mb-4">Age Distribution</h3>
           <div className="grid grid-cols-5 gap-2">
-            {['0-17', '18-29', '30-49', '50-69', '70+'].map(group => (
-              <div key={group} className="text-center p-2 bg-purple-500/10 rounded-lg">
-                <p className="text-purple-400 text-xs">{group}</p>
-                <p className="text-lg font-bold text-purple-500">
-                  {((stats?.members.ageGroups[group] || 0) + (stats?.family.ageGroups[group] || 0))}
-                </p>
-              </div>
-            ))}
+            {['0-17', '18-29', '30-49', '50-69', '70+'].map(group => {
+              const count = ((stats?.members.ageGroups[group] || 0) + (stats?.family.ageGroups[group] || 0));
+              return (
+                <div key={group} className="text-center p-2 bg-purple-500/10 rounded-lg">
+                  <p className="text-purple-400 text-xs">{group}</p>
+                  <p className="text-lg font-bold text-purple-500">{count}</p>
+                  <p className="text-xs text-purple-400/80">£{count * 40}</p>
+                </div>
+              );
+            })}
           </div>
         </Card>
       </div>
