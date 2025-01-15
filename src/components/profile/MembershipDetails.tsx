@@ -215,13 +215,13 @@ Please return this form to your bank.`;
               Generate Standing Order Form
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] bg-dashboard-card border-dashboard-cardBorder">
+          <DialogContent className="sm:max-w-[500px] bg-dashboard-card border-dashboard-cardBorder max-h-[90vh] overflow-y-auto p-4">
             <DialogHeader>
               <DialogTitle className="text-dashboard-text">Standing Order Form</DialogTitle>
             </DialogHeader>
             <Alert className="mb-4 bg-dashboard-accent1/10 border-dashboard-accent1/20">
               <AlertCircle className="h-4 w-4 text-dashboard-accent1" />
-              <AlertDescription className="text-yellow-400 text-lg">
+              <AlertDescription className="text-yellow-400 text-sm">
                 Please note: Standing orders can only be set up for next year's payment. This cannot be used for your current payment which must be paid directly to your collector. You can also set up a standing order through your banking app or online banking portal.
               </AlertDescription>
             </Alert>
@@ -267,7 +267,7 @@ Please return this form to your bank.`;
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 sticky bottom-0 pt-2 bg-dashboard-card">
               <Button variant="outline" onClick={handlePrint} className="bg-blue-500 hover:bg-blue-600 text-white">
                 <Printer className="w-4 h-4 mr-2" />
                 Print
