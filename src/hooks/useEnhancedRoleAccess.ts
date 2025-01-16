@@ -28,11 +28,17 @@ const fetchUserRolesFromSupabase = async () => {
       throw error;
     }
 
+    if (!data) {
+      console.log('No roles found, defaulting to member role');
+      return ['member'];
+    }
+
     console.log('Roles fetched successfully:', data);
-    return data?.map(item => item.role as UserRole) || [];
+    return data.map(item => item.role as UserRole) || ['member'];
   } catch (error) {
     console.error('Failed to fetch roles:', error);
-    throw error;
+    // Default to member role on error to prevent infinite loading
+    return ['member'];
   }
 };
 
@@ -49,6 +55,7 @@ export const useEnhancedRoleAccess = () => {
     queryFn: fetchUserRolesFromSupabase,
     retry: 2,
     retryDelay: 1000,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     meta: {
       onSuccess: (data: UserRole[]) => {
         console.log('Role query succeeded, updating store:', data);
@@ -57,9 +64,7 @@ export const useEnhancedRoleAccess = () => {
           ? 'admin' 
           : data.includes('collector')
             ? 'collector'
-            : data.includes('member')
-              ? 'member'
-              : null;
+            : 'member';
         
         setUserRole(primaryRole);
         const permissions = mapRolesToPermissions(data);
@@ -69,13 +74,21 @@ export const useEnhancedRoleAccess = () => {
       },
       onError: (error: Error) => {
         console.error('Role query failed:', error);
-        setError(error);
+        // Set default member role on error
+        const defaultRole = ['member'];
+        setUserRoles(defaultRole);
+        setUserRole('member');
+        setPermissions(mapRolesToPermissions(defaultRole));
         setIsLoading(false);
+        setError(error);
         toast({
-          title: "Error fetching roles",
-          description: "Failed to load user roles. Please refresh the page or try again later.",
+          title: "Warning",
+          description: "Using default member access. Some features may be limited.",
           variant: "destructive",
         });
+      },
+      onSettled: () => {
+        setIsLoading(false);
       }
     }
   });

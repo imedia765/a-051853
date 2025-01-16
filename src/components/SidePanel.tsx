@@ -55,16 +55,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
       timestamp: new Date().toISOString()
     });
     
-    if (!userRole && !userRoles && !roleLoading) {
-      console.log('No user roles available');
-      toast({
-        title: "Access Error",
-        description: "Your roles are not properly loaded. Please try refreshing the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Allow tab changes even while loading roles
     const hasAccess = shouldShowTab(tab);
     console.log('Access check:', { tab, userRole, userRoles, hasAccess });
 
@@ -80,7 +71,10 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
   };
 
   const shouldShowTab = (tab: string): boolean => {
-    if (!userRole && !userRoles && !roleLoading) return false;
+    // Default to showing only dashboard while loading
+    if (roleLoading) {
+      return tab === 'dashboard';
+    }
 
     switch (tab) {
       case 'dashboard':
@@ -104,7 +98,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           {roleLoading && <Loader2 className="h-4 w-4 animate-spin" />}
         </h2>
         <p className="text-sm text-dashboard-muted">
-          Manage your account
+          {roleLoading ? 'Loading access...' : 'Manage your account'}
         </p>
       </div>
       
@@ -121,7 +115,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           </Button>
 
           {/* Members - For admins and collectors */}
-          {shouldShowTab('users') && (
+          {(roleLoading || shouldShowTab('users')) && (
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
@@ -133,7 +127,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           )}
 
           {/* Financials - For admins and collectors */}
-          {shouldShowTab('financials') && (
+          {(roleLoading || shouldShowTab('financials')) && (
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
@@ -145,7 +139,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           )}
 
           {/* System - Only for admins */}
-          {shouldShowTab('system') && (
+          {(roleLoading || shouldShowTab('system')) && (
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
