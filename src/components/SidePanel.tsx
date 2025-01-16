@@ -33,8 +33,17 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
     timestamp: new Date().toISOString()
   });
 
-  const handleLogoutClick = () => {
-    handleSignOut(false);
+  const handleLogoutClick = async () => {
+    try {
+      await handleSignOut(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error signing out",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTabChange = (tab: string) => {
@@ -46,12 +55,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
       timestamp: new Date().toISOString()
     });
     
-    if (roleLoading) {
-      console.log('Roles still loading, deferring access check');
-      return;
-    }
-
-    if (!userRole && !userRoles) {
+    if (!userRole && !userRoles && !roleLoading) {
       console.log('No user roles available');
       toast({
         title: "Access Error",
@@ -76,7 +80,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
   };
 
   const shouldShowTab = (tab: string): boolean => {
-    if (!userRole && !userRoles) return false;
+    if (!userRole && !userRoles && !roleLoading) return false;
 
     switch (tab) {
       case 'dashboard':
@@ -111,7 +115,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
             variant="ghost"
             className="w-full justify-start gap-2 text-sm"
             onClick={() => handleTabChange('dashboard')}
-            disabled={roleLoading}
           >
             <LayoutDashboard className="h-4 w-4" />
             Overview
@@ -123,7 +126,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('users')}
-              disabled={roleLoading}
             >
               <Users className="h-4 w-4" />
               Members
@@ -136,7 +138,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('financials')}
-              disabled={roleLoading}
             >
               <Wallet className="h-4 w-4" />
               Collectors & Financials
@@ -149,7 +150,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('system')}
-              disabled={roleLoading}
             >
               <Settings className="h-4 w-4" />
               System
@@ -163,7 +163,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           variant="ghost"
           className="w-full justify-start gap-2 text-sm text-dashboard-muted hover:text-white"
           onClick={handleLogoutClick}
-          disabled={roleLoading}
         >
           <LogOut className="h-4 w-4" />
           Logout
