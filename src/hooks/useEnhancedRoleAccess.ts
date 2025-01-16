@@ -16,18 +16,24 @@ const fetchUserRolesFromSupabase = async () => {
   }
 
   console.log('Fetching roles for user:', session.user.id);
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id);
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .throwOnError();
 
-  if (error) {
-    console.error('Error fetching user roles:', error);
+    if (error) {
+      console.error('Error fetching user roles:', error);
+      throw error;
+    }
+
+    console.log('Roles fetched successfully:', data);
+    return data?.map(item => item.role as UserRole) || [];
+  } catch (error) {
+    console.error('Failed to fetch roles:', error);
     throw error;
   }
-
-  console.log('Roles fetched successfully:', data);
-  return data?.map(item => item.role as UserRole) || [];
 };
 
 export const useEnhancedRoleAccess = () => {
@@ -41,7 +47,8 @@ export const useEnhancedRoleAccess = () => {
   return useQuery({
     queryKey: ['userRoles'],
     queryFn: fetchUserRolesFromSupabase,
-    retry: 1,
+    retry: 2,
+    retryDelay: 1000,
     meta: {
       onSuccess: (data: UserRole[]) => {
         console.log('Role query succeeded, updating store:', data);
@@ -66,7 +73,7 @@ export const useEnhancedRoleAccess = () => {
         setIsLoading(false);
         toast({
           title: "Error fetching roles",
-          description: error.message,
+          description: "Failed to load user roles. Please refresh the page or try again later.",
           variant: "destructive",
         });
       }
