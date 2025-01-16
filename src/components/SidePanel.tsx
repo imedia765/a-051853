@@ -6,7 +6,8 @@ import {
   Users, 
   Settings,
   Wallet,
-  LogOut
+  LogOut,
+  Loader2
 } from "lucide-react";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
@@ -75,7 +76,6 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
   };
 
   const shouldShowTab = (tab: string): boolean => {
-    if (roleLoading) return false;
     if (!userRole && !userRoles) return false;
 
     switch (tab) {
@@ -92,22 +92,12 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
     }
   };
 
-  // Don't render menu items while roles are loading
-  if (roleLoading) {
-    return (
-      <div className="flex flex-col h-full bg-dashboard-card border-r border-dashboard-cardBorder">
-        <div className="p-4 lg:p-6">
-          <h2 className="text-lg font-semibold text-white">Loading...</h2>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-dashboard-card border-r border-dashboard-cardBorder">
       <div className="p-4 lg:p-6">
-        <h2 className="text-lg font-semibold text-white">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
           Dashboard
+          {roleLoading && <Loader2 className="h-4 w-4 animate-spin" />}
         </h2>
         <p className="text-sm text-dashboard-muted">
           Manage your account
@@ -121,6 +111,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
             variant="ghost"
             className="w-full justify-start gap-2 text-sm"
             onClick={() => handleTabChange('dashboard')}
+            disabled={roleLoading}
           >
             <LayoutDashboard className="h-4 w-4" />
             Overview
@@ -132,6 +123,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('users')}
+              disabled={roleLoading}
             >
               <Users className="h-4 w-4" />
               Members
@@ -144,6 +136,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('financials')}
+              disabled={roleLoading}
             >
               <Wallet className="h-4 w-4" />
               Collectors & Financials
@@ -156,6 +149,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => handleTabChange('system')}
+              disabled={roleLoading}
             >
               <Settings className="h-4 w-4" />
               System
@@ -169,6 +163,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
           variant="ghost"
           className="w-full justify-start gap-2 text-sm text-dashboard-muted hover:text-white"
           onClick={handleLogoutClick}
+          disabled={roleLoading}
         >
           <LogOut className="h-4 w-4" />
           Logout
