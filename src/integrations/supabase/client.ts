@@ -17,8 +17,19 @@ export const supabase = createClient<Database>(
     },
     global: {
       headers: {
-        'X-Client-Info': 'supabase-js-web',
+        'X-Client-Info': 'supabase-js-web/2.1.0',
         'Content-Type': 'application/json'
+      },
+      fetch: (url, options) => {
+        return fetch(url, {
+          ...options,
+          credentials: 'include',
+          headers: {
+            ...options?.headers,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
       }
     },
     db: {

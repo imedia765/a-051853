@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { useRoleStore, mapRolesToPermissions } from '@/store/roleStore';
 import { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -25,10 +25,10 @@ const fetchUserRolesFromSupabase = async () => {
 
     if (error) {
       console.error('Error fetching user roles:', error);
-      throw error;
+      throw handleSupabaseError(error);
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
       console.log('No roles found, defaulting to member role');
       return ['member' as UserRole];
     }
@@ -53,18 +53,18 @@ export const useEnhancedRoleAccess = () => {
   return useQuery({
     queryKey: ['userRoles'],
     queryFn: fetchUserRolesFromSupabase,
-    retry: 2,
-    retryDelay: 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     meta: {
       onSuccess: (data: UserRole[]) => {
         console.log('Role query succeeded, updating store:', data);
         setUserRoles(data);
-        const primaryRole = data.includes('admin') 
-          ? 'admin' 
-          : data.includes('collector')
-            ? 'collector'
-            : 'member';
+        const primaryRole = data.includes('admin' as UserRole) 
+          ? 'admin' as UserRole
+          : data.includes('collector' as UserRole)
+            ? 'collector' as UserRole
+            : 'member' as UserRole;
         
         setUserRole(primaryRole);
         const permissions = mapRolesToPermissions(data);
@@ -75,9 +75,9 @@ export const useEnhancedRoleAccess = () => {
       onError: (error: Error) => {
         console.error('Role query failed:', error);
         // Set default member role on error
-        const defaultRole: UserRole[] = ['member'];
+        const defaultRole: UserRole[] = ['member' as UserRole];
         setUserRoles(defaultRole);
-        setUserRole('member');
+        setUserRole('member' as UserRole);
         setPermissions(mapRolesToPermissions(defaultRole));
         setIsLoading(false);
         setError(error);
