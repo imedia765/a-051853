@@ -3,9 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import MemberSearch from '@/components/MemberSearch';
 import RoleManagementList from './roles/RoleManagementList';
 import { useState } from 'react';
+import { DebugConsole } from '@/components/logs/DebugConsole';
 
 const RoleManagementCard = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  // Function to update debug logs
+  const updateDebugLogs = (logs: string[]) => {
+    setDebugLogs(logs);
+  };
 
   return (
     <Card className="bg-dashboard-card border-white/10">
@@ -25,7 +32,11 @@ const RoleManagementCard = () => {
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
         />
-        <RoleManagementList searchTerm={searchTerm} />
+        <RoleManagementList 
+          searchTerm={searchTerm} 
+          onDebugLog={updateDebugLogs}
+        />
+        <DebugConsole logs={debugLogs} />
       </CardContent>
     </Card>
   );

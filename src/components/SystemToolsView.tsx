@@ -1,9 +1,11 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardTabs, DashboardTabsContent, DashboardTabsList, DashboardTabsTrigger } from "@/components/ui/dashboard-tabs";
 import SystemHealthCheck from "./system/SystemHealthCheck";
 import GitOperationsCard from "./system/GitOperationsCard";
 import RoleManagementCard from "./system/RoleManagementCard";
 import UserManual from "./documentation/UserManual";
 import AnnouncementsManager from "./system/AnnouncementsManager";
+import LegalDocumentsView from "./system/LegalDocumentsView";
+import { Route, GitBranch, UserCog, Book, Bell, FileText } from "lucide-react";
 
 const SystemToolsView = () => {
   return (
@@ -13,60 +15,58 @@ const SystemToolsView = () => {
         <p className="text-dashboard-muted">Manage system settings and monitor performance</p>
       </header>
 
-      <Tabs defaultValue="health" className="space-y-4">
-        <TabsList className="w-full grid grid-cols-5 gap-2 bg-dashboard-card p-1">
-          <TabsTrigger 
-            value="health"
-            className="data-[state=active]:bg-dashboard-accent1 data-[state=active]:text-white"
-          >
+      <DashboardTabs defaultValue="health" className="space-y-4">
+        <DashboardTabsList className="w-full grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-0 bg-dashboard-card p-1 rounded-lg overflow-x-auto scrollbar-none">
+          <DashboardTabsTrigger value="health" className="min-w-[120px]">
+            <Route className="w-4 h-4 mr-2" />
             System Health
-          </TabsTrigger>
-          <TabsTrigger 
-            value="git"
-            className="data-[state=active]:bg-dashboard-accent1 data-[state=active]:text-white"
-          >
+          </DashboardTabsTrigger>
+          <DashboardTabsTrigger value="git" className="min-w-[120px]">
+            <GitBranch className="w-4 h-4 mr-2" />
             Git Operations
-          </TabsTrigger>
-          <TabsTrigger 
-            value="roles"
-            className="data-[state=active]:bg-dashboard-accent1 data-[state=active]:text-white"
-          >
+          </DashboardTabsTrigger>
+          <DashboardTabsTrigger value="roles" className="min-w-[120px]">
+            <UserCog className="w-4 h-4 mr-2" />
             Role Management
-          </TabsTrigger>
-          <TabsTrigger 
-            value="manual"
-            className="data-[state=active]:bg-dashboard-accent1 data-[state=active]:text-white"
-          >
+          </DashboardTabsTrigger>
+          <DashboardTabsTrigger value="manual" className="min-w-[120px]">
+            <Book className="w-4 h-4 mr-2" />
             User Manual
-          </TabsTrigger>
-          <TabsTrigger 
-            value="announcements"
-            className="data-[state=active]:bg-dashboard-accent1 data-[state=active]:text-white"
-          >
+          </DashboardTabsTrigger>
+          <DashboardTabsTrigger value="announcements" className="min-w-[120px]">
+            <Bell className="w-4 h-4 mr-2" />
             Announcements
-          </TabsTrigger>
-        </TabsList>
+          </DashboardTabsTrigger>
+          <DashboardTabsTrigger value="legal" className="min-w-[120px]">
+            <FileText className="w-4 h-4 mr-2" />
+            Legal Documents
+          </DashboardTabsTrigger>
+        </DashboardTabsList>
 
-        <TabsContent value="health" className="space-y-4">
+        <DashboardTabsContent value="health" className="space-y-4">
           <SystemHealthCheck />
-        </TabsContent>
+        </DashboardTabsContent>
 
-        <TabsContent value="git" className="space-y-4">
+        <DashboardTabsContent value="git" className="space-y-4">
           <GitOperationsCard />
-        </TabsContent>
+        </DashboardTabsContent>
 
-        <TabsContent value="roles" className="space-y-4">
+        <DashboardTabsContent value="roles" className="space-y-4">
           <RoleManagementCard />
-        </TabsContent>
+        </DashboardTabsContent>
 
-        <TabsContent value="manual" className="space-y-4">
+        <DashboardTabsContent value="manual" className="space-y-4">
           <UserManual />
-        </TabsContent>
+        </DashboardTabsContent>
 
-        <TabsContent value="announcements" className="space-y-4">
+        <DashboardTabsContent value="announcements" className="space-y-4">
           <AnnouncementsManager />
-        </TabsContent>
-      </Tabs>
+        </DashboardTabsContent>
+
+        <DashboardTabsContent value="legal" className="space-y-4">
+          <LegalDocumentsView />
+        </DashboardTabsContent>
+      </DashboardTabs>
     </div>
   );
 };
