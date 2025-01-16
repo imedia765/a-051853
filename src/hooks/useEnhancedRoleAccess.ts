@@ -12,7 +12,7 @@ const fetchUserRolesFromSupabase = async () => {
   
   if (!session?.user) {
     console.log('No authenticated user found during role fetch');
-    return [];
+    return ['member' as UserRole];
   }
 
   console.log('Fetching roles for user:', session.user.id);
@@ -30,15 +30,15 @@ const fetchUserRolesFromSupabase = async () => {
 
     if (!data) {
       console.log('No roles found, defaulting to member role');
-      return ['member'];
+      return ['member' as UserRole];
     }
 
     console.log('Roles fetched successfully:', data);
-    return data.map(item => item.role as UserRole) || ['member'];
+    return data.map(item => item.role as UserRole) || ['member' as UserRole];
   } catch (error) {
     console.error('Failed to fetch roles:', error);
     // Default to member role on error to prevent infinite loading
-    return ['member'];
+    return ['member' as UserRole];
   }
 };
 
@@ -75,7 +75,7 @@ export const useEnhancedRoleAccess = () => {
       onError: (error: Error) => {
         console.error('Role query failed:', error);
         // Set default member role on error
-        const defaultRole = ['member'];
+        const defaultRole: UserRole[] = ['member'];
         setUserRoles(defaultRole);
         setUserRole('member');
         setPermissions(mapRolesToPermissions(defaultRole));
