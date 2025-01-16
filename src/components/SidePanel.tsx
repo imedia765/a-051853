@@ -22,25 +22,46 @@ interface SidePanelProps {
 
 const SidePanel = ({ onTabChange }: SidePanelProps) => {
   const { handleSignOut } = useAuthSession();
-  const { userRole, hasRole } = useRoleAccess();
+  const { userRole, userRoles, roleLoading, hasRole } = useRoleAccess();
   const { toast } = useToast();
   
-  console.log('SidePanel rendered with role:', userRole);
+  console.log('SidePanel rendered with:', {
+    userRole,
+    userRoles,
+    roleLoading,
+    timestamp: new Date().toISOString()
+  });
 
   const handleLogoutClick = () => {
     handleSignOut(false);
   };
 
   const handleTabChange = (tab: string) => {
-    console.log('Tab change requested:', tab, 'Current role:', userRole);
+    console.log('Tab change requested:', {
+      tab,
+      userRole,
+      userRoles,
+      roleLoading,
+      timestamp: new Date().toISOString()
+    });
     
-    if (!userRole) {
-      console.log('No user role available');
+    if (roleLoading) {
+      console.log('Roles still loading, deferring access check');
+      return;
+    }
+
+    if (!userRole && !userRoles) {
+      console.log('No user roles available');
+      toast({
+        title: "Access Error",
+        description: "Your roles are not properly loaded. Please try refreshing the page.",
+        variant: "destructive",
+      });
       return;
     }
 
     const hasAccess = shouldShowTab(tab);
-    console.log('Access check:', { tab, userRole, hasAccess });
+    console.log('Access check:', { tab, userRole, userRoles, hasAccess });
 
     if (hasAccess) {
       onTabChange(tab);
@@ -54,7 +75,8 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
   };
 
   const shouldShowTab = (tab: string): boolean => {
-    if (!userRole) return false;
+    if (roleLoading) return false;
+    if (!userRole && !userRoles) return false;
 
     switch (tab) {
       case 'dashboard':
@@ -62,12 +84,24 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
       case 'users':
         return hasRole('admin') || hasRole('collector');
       case 'financials':
+        return hasRole('admin') || hasRole('collector');
       case 'system':
         return hasRole('admin');
       default:
         return false;
     }
   };
+
+  // Don't render menu items while roles are loading
+  if (roleLoading) {
+    return (
+      <div className="flex flex-col h-full bg-dashboard-card border-r border-dashboard-cardBorder">
+        <div className="p-4 lg:p-6">
+          <h2 className="text-lg font-semibold text-white">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-dashboard-card border-r border-dashboard-cardBorder">
@@ -92,7 +126,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
             Overview
           </Button>
 
-          {/* Members - Only for admins and collectors */}
+          {/* Members - For admins and collectors */}
           {shouldShowTab('users') && (
             <Button
               variant="ghost"
@@ -104,7 +138,7 @@ const SidePanel = ({ onTabChange }: SidePanelProps) => {
             </Button>
           )}
 
-          {/* Financials - Only for admins */}
+          {/* Financials - For admins and collectors */}
           {shouldShowTab('financials') && (
             <Button
               variant="ghost"
