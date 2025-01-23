@@ -94,8 +94,25 @@ export const usePasswordChange = (
         }
       );
 
+      // Validate and type the response data
+      const isValidResponse = (data: unknown): data is PasswordChangeData => {
+        return (
+          typeof data === 'object' && 
+          data !== null && 
+          'success' in data && 
+          typeof (data as any).success === 'boolean'
+        );
+      };
+
+      if (!isValidResponse(rpcData)) {
+        console.error("[PasswordChange] Invalid response format:", rpcData);
+        toast.dismiss(toastId);
+        toast.error("Unexpected server response");
+        return;
+      }
+
       const response: PasswordChangeResponse = { 
-        data: rpcData as PasswordChangeData, 
+        data: rpcData,
         error 
       };
       logPasswordChangeResponse(response);
@@ -109,13 +126,6 @@ export const usePasswordChange = (
         } else {
           toast.error(error.message || "Failed to change password");
         }
-        return;
-      }
-
-      if (!response.data || typeof response.data.success !== 'boolean') {
-        console.error("[PasswordChange] Invalid response format:", rpcData);
-        toast.dismiss(toastId);
-        toast.error("Unexpected server response");
         return;
       }
 
