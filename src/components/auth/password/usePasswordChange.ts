@@ -2,172 +2,89 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { 
-  PasswordFormValues, 
-  PasswordChangeResponse, 
-  PasswordChangeData,
-  logPasswordChangeAttempt, 
-  logPasswordChangeResponse 
-} from "./types";
+import { PasswordFormValues, PasswordChangeResponse, logPasswordChangeAttempt, logPasswordChangeResponse } from "./types";
 
 const MAX_RETRIES = 3;
-const INITIAL_DELAY = 2000;
 
-export const usePasswordChange = (
-  memberNumber: string,
-  onSuccess?: () => void
-) => {
+export const usePasswordChange = (memberNumber: string, onSuccess?: () => void) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const attemptReauthentication = async (
-    email: string, 
-    password: string, 
-    retryCount = 0
-  ): Promise<boolean> => {
-    try {
-      console.log("[PasswordChange] Starting re-authentication attempt", { 
-        email, 
-        retryCount,
-        timestamp: new Date().toISOString()
-      });
-
-      if (retryCount > 0) {
-        const delay = INITIAL_DELAY * Math.pow(2, retryCount - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase(),
-        password
-      });
-
-      if (error) {
-        console.error("[PasswordChange] Re-authentication failed:", { 
-          retryCount, 
-          error,
-          timestamp: new Date().toISOString()
-        });
-        
-        if (retryCount < MAX_RETRIES) {
-          return attemptReauthentication(email, password, retryCount + 1);
-        }
-        return false;
-      }
-
-      console.log("[PasswordChange] Re-authentication successful");
-      return !!data.user;
-    } catch (error) {
-      console.error("[PasswordChange] Re-authentication error:", error);
-      return false;
+  const handlePasswordChange = async (values: PasswordFormValues, retryCount = 0) => {
+    if (retryCount >= MAX_RETRIES) {
+      toast.error("Maximum retry attempts reached. Please try again later.");
+      return;
     }
-  };
 
-  const handlePasswordChange = async (values: PasswordFormValues) => {
-    console.log("[PasswordChange] Starting password change process", {
-      memberNumber,
-      timestamp: new Date().toISOString()
-    });
-
-    logPasswordChangeAttempt(memberNumber, values);
-
+    setIsSubmitting(true);
     const toastId = toast.loading("Changing password...");
 
     try {
-      setIsSubmitting(true);
-      
-      const { data: rpcData, error } = await supabase.rpc(
-        'handle_password_reset',
-        {
-          member_number: memberNumber,
-          new_password: values.newPassword,
-          current_password: values.currentPassword,
-          ip_address: window.location.hostname,
-          user_agent: navigator.userAgent,
-          client_info: {
-            currentPassword: values.currentPassword,
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            timestamp: new Date().toISOString()
-          }
-        }
-      );
+      logPasswordChangeAttempt(memberNumber, values);
 
-      // Validate and type the response data
-      const isValidResponse = (data: unknown): data is PasswordChangeData => {
+      const { data: rpcData, error } = await supabase.rpc('handle_password_reset', {
+        member_number: memberNumber,
+        new_password: values.newPassword,
+        current_password: values.currentPassword,
+        ip_address: null,
+        user_agent: navigator.userAgent,
+        client_info: {
+          timestamp: new Date().toISOString(),
+          browser: navigator.userAgent,
+          platform: navigator.platform
+        }
+      });
+
+      // Type guard to validate response shape
+      const isPasswordChangeData = (data: any): data is PasswordChangeData => {
         return (
-          typeof data === 'object' && 
-          data !== null && 
-          'success' in data && 
-          typeof (data as any).success === 'boolean'
+          data &&
+          typeof data === 'object' &&
+          'success' in data &&
+          typeof data.success === 'boolean'
         );
       };
 
-      if (!isValidResponse(rpcData)) {
-        console.error("[PasswordChange] Invalid response format:", rpcData);
-        toast.dismiss(toastId);
-        toast.error("Unexpected server response");
-        return;
-      }
-
-      const response: PasswordChangeResponse = { 
-        data: rpcData,
-        error 
+      // Create response object with proper typing
+      const response: PasswordChangeResponse = {
+        data: isPasswordChangeData(rpcData) ? rpcData : null,
+        error
       };
+
       logPasswordChangeResponse(response);
 
       if (error) {
-        console.error("[PasswordChange] RPC Error:", error);
+        console.error("[PasswordChange] Error:", error);
         toast.dismiss(toastId);
         
-        if (error.message.includes("invalid auth credentials")) {
-          toast.error("Current password is incorrect");
+        if (error.code === 'PGRST301' && retryCount < MAX_RETRIES) {
+          return handlePasswordChange(values, retryCount + 1);
         } else {
           toast.error(error.message || "Failed to change password");
         }
         return;
       }
 
-      if (!response.data.success) {
+      if (!response.data?.success) {
+        console.error("[PasswordChange] Invalid response:", response);
         toast.dismiss(toastId);
-        toast.error(response.data.error || "Failed to change password");
+        toast.error(response.data?.message || "Failed to change password");
         return;
       }
 
-      await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
-
-      const email = `${memberNumber.toLowerCase()}@temp.com`;
-      console.log("[PasswordChange] Attempting re-authentication", { 
-        email,
-        timestamp: new Date().toISOString()
-      });
-
-      const reauthSuccess = await attemptReauthentication(email, values.newPassword);
-
-      if (!reauthSuccess) {
-        console.warn("[PasswordChange] Re-authentication failed, but password was changed");
-        toast.dismiss(toastId);
-        toast.success("Password changed successfully! Please log in again.");
-        
-        await supabase.auth.signOut();
-        navigate('/login');
-        return;
-      }
-
-      console.log("[PasswordChange] Process completed successfully");
       toast.dismiss(toastId);
-      toast.success("Password changed successfully!");
-
-      onSuccess?.();
+      toast.success("Password changed successfully");
       
-      await supabase.auth.signOut();
-      navigate('/login');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/');
+      }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("[PasswordChange] Unexpected error:", error);
       toast.dismiss(toastId);
-      toast.error(error.message || "An unexpected error occurred");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
