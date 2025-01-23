@@ -1108,17 +1108,29 @@ export type Database = {
         }
         Returns: Json
       }
-      handle_password_reset: {
-        Args: {
-          member_number: string
-          new_password: string
-          admin_user_id?: string
-          ip_address?: string
-          user_agent?: string
-          client_info?: Json
-        }
-        Returns: Json
-      }
+      handle_password_reset:
+        | {
+            Args: {
+              member_number: string
+              new_password: string
+              admin_user_id?: string
+              ip_address?: string
+              user_agent?: string
+              client_info?: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              member_number: string
+              new_password: string
+              current_password?: string
+              ip_address?: string
+              user_agent?: string
+              client_info?: Json
+            }
+            Returns: Json
+          }
       is_admin: {
         Args: {
           user_uid: string
