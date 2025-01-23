@@ -31,7 +31,6 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
   const [showAddFamilyDialog, setShowAddFamilyDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [isFirstTimeLogin, setIsFirstTimeLogin] = useState(false);
 
   useEffect(() => {
     const checkPasswordReset = async () => {
@@ -44,7 +43,6 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
         .single();
         
       if (data?.password_reset_required) {
-        setIsFirstTimeLogin(true);
         setShowPasswordDialog(true);
       }
     };
@@ -202,18 +200,10 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
         onAddFamilyMember={() => setShowAddFamilyDialog(true)}
       />
 
-      <EditProfileDialog
-        member={memberProfile}
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        onProfileUpdated={handleProfileUpdated}
-      />
-
       <ChangePasswordDialog
         open={showPasswordDialog}
         onOpenChange={setShowPasswordDialog}
         memberNumber={memberProfile.member_number}
-        isFirstTimeLogin={isFirstTimeLogin}
       />
 
       {showPaymentDialog && (

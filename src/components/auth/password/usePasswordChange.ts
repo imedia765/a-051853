@@ -88,7 +88,10 @@ export const usePasswordChange = (
         }
       );
 
-      const response: PasswordChangeResponse = { data, error };
+      const response: PasswordChangeResponse = { 
+        data: data as PasswordChangeData, 
+        error 
+      };
       logPasswordChangeResponse(response);
 
       if (error) {
@@ -103,16 +106,16 @@ export const usePasswordChange = (
         return;
       }
 
-      if (!data || typeof data.success !== 'boolean') {
+      if (!response.data || typeof response.data.success !== 'boolean') {
         console.error("[PasswordChange] Invalid response format:", data);
         toast.dismiss(toastId);
         toast.error("Unexpected server response");
         return;
       }
 
-      if (!data.success) {
+      if (!response.data.success) {
         toast.dismiss(toastId);
-        toast.error(data.error || "Failed to change password");
+        toast.error(response.data.error || "Failed to change password");
         return;
       }
 
