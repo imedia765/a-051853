@@ -9,19 +9,29 @@ import { PasswordInput } from "./PasswordInput";
 import { usePasswordChange } from "./usePasswordChange";
 import { PasswordFormValues } from "./types";
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character"),
-  confirmPassword: z.string()
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const createPasswordSchema = (isFirstTimeLogin: boolean) => {
+  const baseSchema = {
+    newPassword: z.string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character"),
+    confirmPassword: z.string()
+  };
+
+  if (!isFirstTimeLogin) {
+    return z.object({
+      ...baseSchema,
+      currentPassword: z.string().min(1, "Current password is required"),
+    });
+  }
+
+  return z.object({
+    ...baseSchema,
+    currentPassword: z.string().optional(),
+  });
+};
 
 interface PasswordFormProps {
   onSubmit?: (values: PasswordFormValues) => Promise<void>;
@@ -36,6 +46,16 @@ export const PasswordForm = ({
   memberNumber,
   onCancel,
 }: PasswordFormProps) => {
+  const passwordSchema = React.useMemo(() => {
+    return createPasswordSchema(isFirstTimeLogin).refine((data) => {
+      if (!data.confirmPassword) return false;
+      return data.newPassword === data.confirmPassword;
+    }, {
+      message: "Passwords don't match",
+      path: ["confirmPassword"],
+    });
+  }, [isFirstTimeLogin]);
+
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
@@ -43,7 +63,7 @@ export const PasswordForm = ({
       newPassword: "",
       confirmPassword: "",
     },
-    mode: "onChange", // Enable real-time validation
+    mode: "onChange",
   });
 
   const { isSubmitting, handlePasswordChange } = usePasswordChange(memberNumber, isFirstTimeLogin);
@@ -55,22 +75,21 @@ export const PasswordForm = ({
       } else {
         await handlePasswordChange(values);
       }
-      // Clear form data after successful submission
       form.reset();
     } catch (error) {
       console.error("[PasswordForm] Submit error:", error);
     }
   };
 
-  // Disable form submission while submitting
-  React.useEffect(() => {
-    if (isSubmitting) {
-      form.reset(form.getValues(), {
-        keepIsSubmitted: true,
-        keepSubmitCount: true,
-      });
-    }
-  }, [isSubmitting, form]);
+  // Check if form fields are filled
+  const isFormFilled = React.useMemo(() => {
+    const values = form.getValues();
+    return (
+      values.newPassword &&
+      values.confirmPassword &&
+      (isFirstTimeLogin || values.currentPassword)
+    );
+  }, [form, isFirstTimeLogin]);
 
   return (
     <Form {...form}>
@@ -115,7 +134,7 @@ export const PasswordForm = ({
           )}
           <Button
             type="submit"
-            disabled={isSubmitting || !form.formState.isValid}
+            disabled={isSubmitting}
             className="bg-[#9b87f5] text-white hover:bg-[#7E69AB] transition-all duration-200 flex items-center gap-2"
           >
             {isSubmitting ? (

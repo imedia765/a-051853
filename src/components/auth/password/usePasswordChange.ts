@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 const MAX_RETRIES = 3;
 const INITIAL_DELAY = 1500;
 
-// Type guard to check if an object has the required PasswordChangeResult shape
 const isPasswordChangeResult = (data: unknown): data is PasswordChangeResult => {
   return (
     typeof data === 'object' &&
@@ -23,6 +22,8 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
 
   const attemptReauthentication = async (email: string, password: string, retryCount = 0): Promise<boolean> => {
     try {
+      console.log("[PasswordChange] Attempting re-authentication", { email, retryCount });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -32,7 +33,10 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
         console.log("[PasswordChange] Re-authentication attempt failed:", { retryCount, error });
         
         if (retryCount < MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY * (retryCount + 1)));
+          // Wait longer between each retry
+          const delay = INITIAL_DELAY * Math.pow(2, retryCount);
+          console.log(`[PasswordChange] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
           return attemptReauthentication(email, password, retryCount + 1);
         }
         
@@ -53,6 +57,7 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
       timestamp: new Date().toISOString()
     });
 
+    // Skip current password validation for first-time login
     if (!isFirstTimeLogin && !values.currentPassword) {
       toast.error("Current password is required");
       return;
@@ -72,6 +77,7 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
       setIsSubmitting(true);
       const loadingToast = toast.loading("Changing password...");
 
+      console.log("[PasswordChange] Calling RPC function");
       const response = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
@@ -106,9 +112,15 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
 
       if (!result.success) {
         toast.dismiss(loadingToast);
-        toast.error(result.error || "Failed to change password");
+        if (result.error?.includes("current password")) {
+          toast.error("Current password is incorrect");
+        } else {
+          toast.error(result.error || "Failed to change password");
+        }
         return;
       }
+
+      console.log("[PasswordChange] Password changed successfully, attempting re-authentication");
 
       // Initial delay before first re-authentication attempt
       await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
@@ -129,6 +141,7 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
       // Always redirect to login to ensure a fresh session
       setTimeout(() => {
         // Sign out current session before redirecting
+        console.log("[PasswordChange] Signing out and redirecting to login");
         supabase.auth.signOut().finally(() => {
           navigate('/login');
         });
