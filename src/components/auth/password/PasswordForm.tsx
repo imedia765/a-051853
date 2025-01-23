@@ -15,7 +15,8 @@ const passwordSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character"),
   confirmPassword: z.string()
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
@@ -42,17 +43,34 @@ export const PasswordForm = ({
       newPassword: "",
       confirmPassword: "",
     },
+    mode: "onChange", // Enable real-time validation
   });
 
   const { isSubmitting, handlePasswordChange } = usePasswordChange(memberNumber, isFirstTimeLogin);
 
   const handleFormSubmit = async (values: PasswordFormValues) => {
-    if (onSubmit) {
-      await onSubmit(values);
-    } else {
-      await handlePasswordChange(values);
+    try {
+      if (onSubmit) {
+        await onSubmit(values);
+      } else {
+        await handlePasswordChange(values);
+      }
+      // Clear form data after successful submission
+      form.reset();
+    } catch (error) {
+      console.error("[PasswordForm] Submit error:", error);
     }
   };
+
+  // Disable form submission while submitting
+  React.useEffect(() => {
+    if (isSubmitting) {
+      form.reset(form.getValues(), {
+        keepIsSubmitted: true,
+        keepSubmitCount: true,
+      });
+    }
+  }, [isSubmitting, form]);
 
   return (
     <Form {...form}>
@@ -63,6 +81,7 @@ export const PasswordForm = ({
             name="currentPassword"
             label="Current Password"
             disabled={isSubmitting}
+            required
           />
         )}
         
@@ -71,6 +90,7 @@ export const PasswordForm = ({
           name="newPassword"
           label="New Password"
           disabled={isSubmitting}
+          required
         />
 
         <PasswordInput
@@ -78,6 +98,7 @@ export const PasswordForm = ({
           name="confirmPassword"
           label="Confirm Password"
           disabled={isSubmitting}
+          required
         />
 
         <div className="flex justify-end space-x-4 pt-4">
@@ -94,7 +115,7 @@ export const PasswordForm = ({
           )}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !form.formState.isValid}
             className="bg-[#9b87f5] text-white hover:bg-[#7E69AB] transition-all duration-200 flex items-center gap-2"
           >
             {isSubmitting ? (

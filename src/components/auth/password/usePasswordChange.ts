@@ -4,9 +4,38 @@ import { toast } from "sonner";
 import { PasswordFormValues, PasswordChangeResponse, PasswordChangeResult } from "./types";
 import { useNavigate } from "react-router-dom";
 
+const MAX_RETRIES = 3;
+const INITIAL_DELAY = 1500;
+
 export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolean) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  const attemptReauthentication = async (email: string, password: string, retryCount = 0): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.log("[PasswordChange] Re-authentication attempt failed:", { retryCount, error });
+        
+        if (retryCount < MAX_RETRIES) {
+          // Wait longer between each retry
+          await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY * (retryCount + 1)));
+          return attemptReauthentication(email, password, retryCount + 1);
+        }
+        
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error("[PasswordChange] Re-authentication error:", error);
+      return false;
+    }
+  };
 
   const handlePasswordChange = async (values: PasswordFormValues) => {
     console.log("[PasswordChange] Starting password change process", {
@@ -34,7 +63,8 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
       setIsSubmitting(true);
       const loadingToast = toast.loading("Changing password...");
 
-      const { data, error } = await supabase.rpc('handle_password_reset', {
+      // Call the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
         ip_address: window.location.hostname,
@@ -46,23 +76,25 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
           isFirstTimeLogin,
           currentPassword: isFirstTimeLogin ? undefined : values.currentPassword
         })
-      }) as PasswordChangeResponse;
+      });
 
-      if (error) {
-        console.error("[PasswordChange] Error:", error);
+      // Handle RPC errors
+      if (rpcError) {
+        console.error("[PasswordChange] RPC Error:", rpcError);
         toast.dismiss(loadingToast);
-        toast.error(error.message || "Failed to change password");
+        toast.error(rpcError.message || "Failed to change password");
         return;
       }
 
-      if (!data) {
-        console.error("[PasswordChange] Invalid response data:", data);
+      // Validate RPC response
+      if (!rpcData || typeof rpcData !== 'object') {
+        console.error("[PasswordChange] Invalid RPC response:", rpcData);
         toast.dismiss(loadingToast);
         toast.error("Unexpected server response");
         return;
       }
 
-      const result = data as PasswordChangeResult;
+      const result = rpcData as PasswordChangeResult;
 
       if (!result.success) {
         toast.dismiss(loadingToast);
@@ -70,12 +102,28 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
         return;
       }
 
+      // Initial delay before first re-authentication attempt
+      await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
+
+      // Attempt re-authentication with new password
+      const email = `${memberNumber.toLowerCase()}@temp.com`;
+      const reauthSuccess = await attemptReauthentication(email, values.newPassword);
+
+      if (!reauthSuccess) {
+        console.warn("[PasswordChange] Re-authentication failed after password change");
+        // Even if re-auth fails, we'll still consider the password change successful
+        // since the RPC call succeeded
+      }
+
       toast.dismiss(loadingToast);
       toast.success("Password changed successfully!");
       
-      // Redirect to login after a short delay
+      // Always redirect to login to ensure a fresh session
       setTimeout(() => {
-        navigate('/login');
+        // Sign out current session before redirecting
+        supabase.auth.signOut().finally(() => {
+          navigate('/login');
+        });
       }, 2000);
 
     } catch (error: any) {
