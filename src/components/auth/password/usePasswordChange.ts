@@ -8,12 +8,21 @@ const MAX_RETRIES = 3;
 const INITIAL_DELAY = 1500;
 
 const isPasswordChangeResult = (data: unknown): data is PasswordChangeResult => {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'success' in data &&
-    typeof (data as PasswordChangeResult).success === 'boolean'
-  );
+  try {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return false;
+    }
+
+    const result = data as Record<string, unknown>;
+    return (
+      'success' in result &&
+      typeof result.success === 'boolean' &&
+      (!('error' in result) || typeof result.error === 'string' || result.error === null) &&
+      (!('message' in result) || typeof result.message === 'string' || result.message === null)
+    );
+  } catch {
+    return false;
+  }
 };
 
 export const usePasswordChange = (
@@ -87,23 +96,24 @@ export const usePasswordChange = (
         hasCurrentPassword: !!values.currentPassword
       });
 
-      // Call the RPC function
-      const { data, error } = await supabase.rpc('handle_password_reset', {
+      // Call the RPC function with the correct parameter structure
+      const { data: responseData, error } = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
+        ip_address: window.location.hostname,
         user_agent: navigator.userAgent,
-        client_info: JSON.stringify({
+        client_info: {
           currentPassword: values.currentPassword || null,
           userAgent: navigator.userAgent,
           platform: navigator.platform,
           language: navigator.language,
           timestamp: new Date().toISOString(),
           isFirstTimeLogin
-        })
+        }
       });
 
       console.log("[PasswordChange] RPC response received", {
-        hasData: !!data,
+        hasData: !!responseData,
         hasError: !!error,
         errorMessage: error?.message
       });
@@ -120,15 +130,22 @@ export const usePasswordChange = (
         return;
       }
 
-      // Type guard for RPC response
-      if (!data || !isPasswordChangeResult(data)) {
-        console.error("[PasswordChange] Invalid RPC response:", data);
+      if (!responseData) {
+        console.error("[PasswordChange] No response data received");
         toast.dismiss(toastId);
-        toast.error("Unexpected server response");
+        toast.error("No response from server");
         return;
       }
 
-      const result = data;
+      // Type check the response data
+      if (!isPasswordChangeResult(responseData)) {
+        console.error("[PasswordChange] Invalid response format:", responseData);
+        toast.dismiss(toastId);
+        toast.error("Unexpected server response format");
+        return;
+      }
+
+      const result = responseData;
       logPasswordChangeResponse({ data: result, error: null }, isFirstTimeLogin);
 
       if (!result.success) {
