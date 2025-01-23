@@ -8,8 +8,7 @@ const MAX_RETRIES = 3;
 const INITIAL_DELAY = 2000;
 
 export const usePasswordChange = (
-  memberNumber: string, 
-  isFirstTimeLogin: boolean,
+  memberNumber: string,
   onSuccess?: () => void
 ) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,18 +61,16 @@ export const usePasswordChange = (
   const handlePasswordChange = async (values: PasswordFormValues) => {
     console.log("[PasswordChange] Starting password change process", {
       memberNumber,
-      isFirstTimeLogin,
       timestamp: new Date().toISOString()
     });
 
-    logPasswordChangeAttempt(memberNumber, isFirstTimeLogin, values);
+    logPasswordChangeAttempt(memberNumber, values);
 
     const toastId = toast.loading("Changing password...");
 
     try {
       setIsSubmitting(true);
       
-      // Call the RPC function
       const response: PasswordChangeResponse = await supabase.rpc(
         'handle_password_reset',
         {
@@ -87,13 +84,12 @@ export const usePasswordChange = (
             userAgent: navigator.userAgent,
             platform: navigator.platform,
             language: navigator.language,
-            timestamp: new Date().toISOString(),
-            isFirstTimeLogin
+            timestamp: new Date().toISOString()
           }
         }
       );
 
-      logPasswordChangeResponse(response, isFirstTimeLogin);
+      logPasswordChangeResponse(response);
 
       if (response.error) {
         console.error("[PasswordChange] RPC Error:", response.error);

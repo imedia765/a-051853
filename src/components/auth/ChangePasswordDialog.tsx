@@ -14,14 +14,12 @@ interface ChangePasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   memberNumber: string;
-  isFirstTimeLogin?: boolean;
 }
 
 const ChangePasswordDialog = ({
   open,
   onOpenChange,
   memberNumber,
-  isFirstTimeLogin = false,
 }: ChangePasswordDialogProps) => {
   const [memberName, setMemberName] = useState<string>("Loading...");
 
@@ -61,13 +59,13 @@ const ChangePasswordDialog = ({
   return (
     <Dialog 
       open={open} 
-      onOpenChange={isFirstTimeLogin ? undefined : onOpenChange}
+      onOpenChange={onOpenChange}
     >
       <DialogContent className="w-full max-w-md bg-dashboard-card border border-dashboard-cardBorder">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-dashboard-accent1 flex items-center gap-2">
             <Key className="w-5 h-5" />
-            {isFirstTimeLogin ? "Set New Password" : "Change Password"}
+            Change Password
           </DialogTitle>
           <div className="text-sm text-dashboard-text mt-2">
             <p className="mb-1">Member: <span className="font-medium">{memberName}</span></p>
@@ -79,7 +77,6 @@ const ChangePasswordDialog = ({
         
         <PasswordForm
           memberNumber={memberNumber}
-          isFirstTimeLogin={isFirstTimeLogin}
           onCancel={() => onOpenChange(false)}
           onSuccess={handleSuccess}
         />
