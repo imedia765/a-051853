@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { PasswordFormValues } from "./types";
+import { PasswordFormValues, PasswordChangeResponse, logPasswordChangeAttempt, logPasswordChangeResponse } from "./types";
 
 const MAX_RETRIES = 3;
 const INITIAL_DELAY = 2000;
@@ -66,13 +66,15 @@ export const usePasswordChange = (
       timestamp: new Date().toISOString()
     });
 
+    logPasswordChangeAttempt(memberNumber, isFirstTimeLogin, values);
+
     const toastId = toast.loading("Changing password...");
 
     try {
       setIsSubmitting(true);
       
       // Call the RPC function
-      const { data: responseData, error: rpcError } = await supabase.rpc(
+      const { data: responseData, error: rpcError }: PasswordChangeResponse = await supabase.rpc(
         'handle_password_reset',
         {
           member_number: memberNumber,
