@@ -28,6 +28,12 @@ export const usePasswordChange = (
     try {
       console.log("[PasswordChange] Attempting re-authentication", { email, retryCount });
       
+      // Add a delay before each attempt
+      if (retryCount > 0) {
+        const delay = INITIAL_DELAY * Math.pow(2, retryCount - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -37,16 +43,13 @@ export const usePasswordChange = (
         console.log("[PasswordChange] Re-authentication attempt failed:", { retryCount, error });
         
         if (retryCount < MAX_RETRIES) {
-          // Wait longer between each retry
-          const delay = INITIAL_DELAY * Math.pow(2, retryCount);
-          console.log(`[PasswordChange] Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
           return attemptReauthentication(email, password, retryCount + 1);
         }
         
         return false;
       }
 
+      console.log("[PasswordChange] Re-authentication successful");
       return !!data.user;
     } catch (error) {
       console.error("[PasswordChange] Re-authentication error:", error);
@@ -57,7 +60,7 @@ export const usePasswordChange = (
   const handlePasswordChange = async (values: PasswordFormValues) => {
     logPasswordChangeAttempt(memberNumber, isFirstTimeLogin, values);
 
-    // Skip current password validation for first-time login
+    // Validate inputs
     if (!isFirstTimeLogin && !values.currentPassword) {
       toast.error("Current password is required");
       return;
@@ -69,91 +72,100 @@ export const usePasswordChange = (
     }
 
     if (values.newPassword !== values.confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("Passwords don't match");
       return;
     }
 
+    const toastId = toast.loading("Changing password...");
+
     try {
       setIsSubmitting(true);
-      const loadingToast = toast.loading("Changing password...");
+      
+      console.log("[PasswordChange] Preparing RPC call", {
+        memberNumber,
+        isFirstTimeLogin,
+        hasCurrentPassword: !!values.currentPassword
+      });
 
-      console.log("[PasswordChange] Calling RPC function");
-      const response = await supabase.rpc('handle_password_reset', {
+      // Call the RPC function
+      const { data, error } = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
-        ip_address: window.location.hostname,
         user_agent: navigator.userAgent,
         client_info: JSON.stringify({
+          currentPassword: values.currentPassword || null,
+          userAgent: navigator.userAgent,
           platform: navigator.platform,
           language: navigator.language,
           timestamp: new Date().toISOString(),
-          isFirstTimeLogin,
-          currentPassword: isFirstTimeLogin ? undefined : values.currentPassword
+          isFirstTimeLogin
         })
       });
 
-      logPasswordChangeResponse(response as PasswordChangeResponse, isFirstTimeLogin);
+      console.log("[PasswordChange] RPC response received", {
+        hasData: !!data,
+        hasError: !!error,
+        errorMessage: error?.message
+      });
 
-      // Handle RPC errors
-      if (response.error) {
-        console.error("[PasswordChange] RPC Error:", response.error);
-        toast.dismiss(loadingToast);
-        toast.error(response.error.message || "Failed to change password");
-        return;
-      }
-
-      // Validate RPC response
-      if (!response.data || !isPasswordChangeResult(response.data)) {
-        console.error("[PasswordChange] Invalid RPC response:", response.data);
-        toast.dismiss(loadingToast);
-        toast.error("Unexpected server response");
-        return;
-      }
-
-      const result = response.data;
-
-      if (!result.success) {
-        toast.dismiss(loadingToast);
-        if (result.error?.includes("current password")) {
+      if (error) {
+        console.error("[PasswordChange] RPC Error:", error);
+        toast.dismiss(toastId);
+        
+        if (error.message.includes("invalid auth credentials")) {
           toast.error("Current password is incorrect");
         } else {
-          toast.error(result.error || "Failed to change password");
+          toast.error(error.message || "Failed to change password");
         }
         return;
       }
 
-      console.log("[PasswordChange] Password changed successfully, attempting re-authentication");
+      // Type guard for RPC response
+      if (!data || !isPasswordChangeResult(data)) {
+        console.error("[PasswordChange] Invalid RPC response:", data);
+        toast.dismiss(toastId);
+        toast.error("Unexpected server response");
+        return;
+      }
 
-      // Initial delay before first re-authentication attempt
+      const result = data;
+      logPasswordChangeResponse({ data: result, error: null }, isFirstTimeLogin);
+
+      if (!result.success) {
+        toast.dismiss(toastId);
+        toast.error(result.error || "Failed to change password");
+        return;
+      }
+
+      // Add a delay before re-authentication
       await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
 
       // Attempt re-authentication with new password
       const email = `${memberNumber.toLowerCase()}@temp.com`;
+      console.log("[PasswordChange] Starting re-authentication process");
       const reauthSuccess = await attemptReauthentication(email, values.newPassword);
 
       if (!reauthSuccess) {
         console.warn("[PasswordChange] Re-authentication failed after password change");
-        // Even if re-auth fails, we'll still consider the password change successful
-        // since the RPC call succeeded
+      } else {
+        console.log("[PasswordChange] Re-authentication successful");
       }
 
-      toast.dismiss(loadingToast);
+      // Dismiss loading toast and show success
+      toast.dismiss(toastId);
       toast.success("Password changed successfully!");
 
-      // Call onSuccess before navigating
+      // Call onSuccess callback
       onSuccess?.();
       
-      // Always redirect to login to ensure a fresh session
-      setTimeout(() => {
-        // Sign out current session before redirecting
-        console.log("[PasswordChange] Signing out and redirecting to login");
-        supabase.auth.signOut().finally(() => {
-          navigate('/login');
-        });
-      }, 2000);
+      // Sign out and redirect to login
+      console.log("[PasswordChange] Signing out and redirecting");
+      await supabase.auth.signOut();
+      navigate('/login');
 
     } catch (error: any) {
       console.error("[PasswordChange] Unexpected error:", error);
+      toast.dismiss(toastId);
       toast.error(error.message || "An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
