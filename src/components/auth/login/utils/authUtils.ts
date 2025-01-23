@@ -13,7 +13,7 @@ export const verifyMember = async (memberNumber: string) => {
   try {
     const { data: members, error: memberError } = await supabase
       .from('members')
-      .select('id, member_number, status')
+      .select('id, member_number, status, locked_until')
       .eq('member_number', memberNumber)
       .eq('status', 'active')
       .limit(1)
@@ -31,17 +31,16 @@ export const verifyMember = async (memberNumber: string) => {
       throw new Error('Member not found or inactive');
     }
 
+    if (members.locked_until && new Date(members.locked_until) > new Date()) {
+      throw new Error(`Account is locked until ${new Date(members.locked_until).toLocaleString()}`);
+    }
+
     return members;
   } catch (error: any) {
     console.error('Member verification error:', error);
     throw error;
   }
 };
-
-export const getAuthCredentials = (memberNumber: string) => ({
-  email: `${memberNumber.toLowerCase()}@temp.com`,
-  password: memberNumber,
-});
 
 export const handleSignInError = async (error: any, email: string, password: string) => {
   console.error('Sign in error:', error);

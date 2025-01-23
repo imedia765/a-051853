@@ -12,9 +12,9 @@ export function useAuthSession() {
   const queryClient = useQueryClient();
 
   const handleSignOut = async (skipStorageClear = false) => {
-    console.log('Starting sign out process...');
+    console.log('[Auth] Starting sign out process...');
     if (isLoggingOut) {
-      console.log('Logout already in progress, skipping...');
+      console.log('[Auth] Logout already in progress, skipping...');
       return;
     }
 
@@ -22,26 +22,26 @@ export function useAuthSession() {
       setIsLoggingOut(true);
       setLoading(true);
       
-      console.log('Clearing query cache...');
+      console.log('[Auth] Clearing query cache...');
       await queryClient.resetQueries();
       await queryClient.clear();
       
       if (!skipStorageClear) {
-        console.log('Clearing local storage...');
+        console.log('[Auth] Clearing local storage...');
         localStorage.clear();
         sessionStorage.clear();
       }
       
-      console.log('Signing out from Supabase...');
+      console.log('[Auth] Signing out from Supabase...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      console.log('Sign out successful');
+      console.log('[Auth] Sign out successful');
       setSession(null);
       window.location.href = '/login';
       
     } catch (error: any) {
-      console.error('Error during sign out:', error);
+      console.error('[Auth] Error during sign out:', error);
       toast({
         title: "Error signing out",
         description: error.message.includes('502') 
@@ -57,25 +57,29 @@ export function useAuthSession() {
 
   useEffect(() => {
     let mounted = true;
-    console.log('Auth session hook mounted');
+    console.log('[Auth] Session hook mounted');
 
     const initializeSession = async () => {
       try {
-        console.log('Initializing session...');
+        console.log('[Auth] Initializing session...');
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session initialization error:', error);
+          console.error('[Auth] Session initialization error:', error);
           throw error;
         }
         
         if (mounted) {
-          console.log('Setting session state:', !!currentSession);
+          console.log('[Auth] Setting session state:', {
+            hasSession: !!currentSession,
+            userId: currentSession?.user?.id,
+            timestamp: new Date().toISOString()
+          });
           setSession(currentSession);
           setLoading(false);
         }
       } catch (error) {
-        console.error('Session initialization failed:', error);
+        console.error('[Auth] Session initialization failed:', error);
         if (mounted) {
           setLoading(false);
         }
@@ -85,16 +89,21 @@ export function useAuthSession() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!mounted) return;
 
-      console.log('Auth state changed:', event, !!currentSession);
+      console.log('[Auth] Auth state changed:', {
+        event,
+        hasSession: !!currentSession,
+        userId: currentSession?.user?.id,
+        timestamp: new Date().toISOString()
+      });
       
       if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !currentSession)) {
-        console.log('User signed out or token refresh failed');
+        console.log('[Auth] User signed out or token refresh failed');
         window.location.href = '/login';
         return;
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('User signed in or token refreshed');
+        console.log('[Auth] User signed in or token refreshed');
         setSession(currentSession);
         queryClient.invalidateQueries({ queryKey: ['userRoles'] });
       }

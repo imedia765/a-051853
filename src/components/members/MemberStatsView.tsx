@@ -1,17 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import MetricCard from '../MetricCard';
 import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Printer } from 'lucide-react';
+import { generateMembersPDF, generateCollectorZip } from '@/utils/pdfGenerator';
+import { useToast } from "@/hooks/use-toast";
+import PDFGenerationProgress from '../PDFGenerationProgress';
 
 const MemberStatsView = () => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, collector: '' });
+  const { toast } = useToast();
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ['memberStats'],
     queryFn: async () => {
-      // Get all members
+      // Get all members with collector information
       const { data: members } = await supabase
         .from('members')
-        .select('id, gender, date_of_birth');
+        .select(`
+          id, 
+          gender, 
+          date_of_birth,
+          full_name,
+          member_number,
+          collector,
+          members_collectors!members_collectors_member_number_fkey (
+            name
+          )
+        `);
 
       // Get all family members
       const { data: familyMembers } = await supabase
@@ -46,8 +65,18 @@ const MemberStatsView = () => {
         total: allMembers.length,
         men: allMembers.filter(m => m.gender === 'male').length,
         women: allMembers.filter(m => m.gender === 'female').length,
-        ageGroups: {} as Record<string, number>
+        ageGroups: {} as Record<string, number>,
+        membersByCollector: {} as Record<string, any[]>
       };
+
+      // Group members by collector
+      allMembers.forEach(member => {
+        const collectorName = member.collector || 'Unassigned';
+        if (!memberStats.membersByCollector[collectorName]) {
+          memberStats.membersByCollector[collectorName] = [];
+        }
+        memberStats.membersByCollector[collectorName].push(member);
+      });
 
       // Process family members
       const familyStats = {
@@ -85,20 +114,108 @@ const MemberStatsView = () => {
     }
   });
 
+  const handleGenerateAllReports = async () => {
+    if (!stats?.members.membersByCollector) {
+      toast({
+        title: "Error",
+        description: "No member data available to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      const allMembers = Object.values(stats.members.membersByCollector).flat();
+
+      // Generate master list PDF
+      const masterDoc = generateMembersPDF(allMembers, 'Master Members List');
+      masterDoc.save('master-members-list.pdf');
+
+      // Generate collector-wise PDFs
+      await generateCollectorZip(allMembers, (current, total, collector) => {
+        setProgress({ current, total, collector });
+      });
+
+      toast({
+        title: "Success",
+        description: "Master list and collector reports generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDFs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateCollectorReport = async (collectorName: string) => {
+    const collectorMembers = stats?.members.membersByCollector[collectorName] || [];
+    if (!collectorMembers.length) {
+      toast({
+        title: "Error",
+        description: "No members found for this collector",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const doc = generateMembersPDF(collectorMembers, `Members List - Collector: ${collectorName}`);
+      doc.save(`collector-${collectorName.toLowerCase().replace(/\s+/g, '-')}-members.pdf`);
+      
+      toast({
+        title: "Success",
+        description: "PDF report generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return <div>Loading statistics...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-white mb-6">Member Statistics</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-white">Member Statistics</h2>
+        <div className="flex gap-4">
+          <Button
+            onClick={handleGenerateAllReports}
+            className="flex items-center gap-2 bg-dashboard-accent1 hover:bg-dashboard-accent1/80"
+            disabled={isGenerating}
+          >
+            <Printer className="w-4 h-4" />
+            {isGenerating ? 'Generating...' : 'Export All Reports'}
+          </Button>
+        </div>
+      </div>
+
+      {isGenerating && (
+        <PDFGenerationProgress
+          current={progress.current}
+          total={progress.total}
+          currentCollector={progress.collector}
+        />
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           title="Total Members"
-          value={stats?.total || 0}
+          value={stats?.members.total || 0}
           color="#22c55e"
-          details={`£${(stats?.total || 0) * 40} total yearly contributions`}
+          details={`£${(stats?.members.total || 0) * 40} total yearly contributions`}
         />
         <MetricCard
           title="Direct Members"
@@ -147,6 +264,29 @@ const MemberStatsView = () => {
           </div>
         </Card>
       </div>
+
+      <Card className="p-6 bg-dashboard-card/50 border-dashboard-cardBorder">
+        <h3 className="text-lg font-medium text-white mb-4">Collector Reports</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {stats?.members.membersByCollector && Object.entries(stats.members.membersByCollector).map(([collector, members]) => (
+            <Card key={collector} className="p-4 bg-dashboard-card border-dashboard-cardBorder">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-white">{collector}</p>
+                  <p className="text-sm text-dashboard-text">Members: {members.length}</p>
+                </div>
+                <Button
+                  onClick={() => handleGenerateCollectorReport(collector)}
+                  size="sm"
+                  className="bg-dashboard-accent2 hover:bg-dashboard-accent2/80"
+                >
+                  <Printer className="w-4 h-4" />
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };

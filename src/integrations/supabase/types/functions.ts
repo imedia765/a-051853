@@ -72,6 +72,17 @@ export type DatabaseFunctions = {
     Args: Record<PropertyKey, never>;
     Returns: undefined;
   };
+
+  handle_failed_login: {
+    Args: { member_number: string };
+    Returns: {
+      locked: boolean;
+      attempts: number;
+      max_attempts: number;
+      lockout_duration: string;
+    };
+  };
+
   validate_user_roles: {
     Args: Record<PropertyKey, never>;
     Returns: {

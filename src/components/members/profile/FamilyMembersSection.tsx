@@ -2,6 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
 import FamilyMemberCard from "../FamilyMemberCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface FamilyMembersSectionProps {
   familyMembers: any[];
@@ -9,6 +11,22 @@ interface FamilyMembersSectionProps {
 }
 
 const FamilyMembersSection = ({ familyMembers, onAddFamilyMember }: FamilyMembersSectionProps) => {
+  const queryClient = useQueryClient();
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from('family_members')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Invalidate and refetch family members
+    queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
+  };
+
   return (
     <Card className="bg-dashboard-card border-white/10 shadow-lg hover:border-dashboard-accent1/50 transition-all duration-300">
       <CardContent className="pt-6">
@@ -28,11 +46,13 @@ const FamilyMembersSection = ({ familyMembers, onAddFamilyMember }: FamilyMember
           {familyMembers?.map((familyMember) => (
             <FamilyMemberCard
               key={familyMember.id}
+              id={familyMember.id}
               name={familyMember.full_name}
               relationship={familyMember.relationship}
               dob={familyMember.date_of_birth?.toString() || null}
               gender={familyMember.gender}
               memberNumber={familyMember.family_member_number}
+              onDelete={handleDelete}
             />
           ))}
         </div>

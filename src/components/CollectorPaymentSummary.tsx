@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { Loader2, Receipt, CreditCard, PoundSterling, Users, AlertCircle } from "lucide-react";
+import { Loader2, Receipt, CreditCard, PoundSterling, Users, AlertCircle, TrendingUp, Clock } from "lucide-react";
 import { formatDate } from "@/lib/dateFormat";
 
 interface PaymentSummaryProps {
@@ -132,32 +132,32 @@ const CollectorPaymentSummary = ({ collectorName }: PaymentSummaryProps) => {
   return (
     <div className="space-y-6">
       <Card className="glass-card p-6">
-        <h3 className="text-xl font-medium text-white mb-6">Payment Collection Summary</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-medium text-white">Collection Overview</h3>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-dashboard-accent1">Total Members: {paymentStats.totalMembers}</span>
+            <span className="text-dashboard-accent2">Active: {paymentStats.membershipStats.active}</span>
+          </div>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="glass-card p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Yearly Payments Card */}
+          <div className="glass-card p-4 relative overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="w-5 h-5 text-dashboard-accent1" />
               <h4 className="text-dashboard-accent1 font-medium">Yearly Payments</h4>
             </div>
             
             <div className="flex items-center justify-between">
-              <div>
+              <div className="space-y-2">
                 <p className="text-2xl font-bold text-white">
-                  £{collectedYearlyAmount} / £{totalYearlyAmount}
+                  £{collectedYearlyAmount}
                 </p>
-                <p className="text-sm text-dashboard-muted">Amount collected</p>
-                <p className="text-sm text-dashboard-warning font-medium mt-1">
-                  {remainingMembers} {remainingMembers === 1 ? 'member' : 'members'} remaining
-                </p>
-                {paymentStats.yearlyPayments.nextDueDate && (
-                  <p className="text-sm text-dashboard-accent2 mt-2">
-                    Next due: {formatDate(paymentStats.yearlyPayments.nextDueDate)}
-                  </p>
-                )}
-                <p className="text-sm text-dashboard-error mt-1">
-                  {paymentStats.yearlyPayments.overdue} overdue payments
-                </p>
+                <p className="text-sm text-dashboard-muted">of £{totalYearlyAmount}</p>
+                <div className="flex items-center gap-2 text-sm text-dashboard-warning">
+                  <Clock className="w-4 h-4" />
+                  <span>{remainingMembers} remaining</span>
+                </div>
               </div>
               <div className="w-16 h-16">
                 <CircularProgressbar
@@ -174,26 +174,23 @@ const CollectorPaymentSummary = ({ collectorName }: PaymentSummaryProps) => {
             </div>
           </div>
 
-          <div className="glass-card p-4">
+          {/* Emergency Collections Card */}
+          <div className="glass-card p-4 relative overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Receipt className="w-5 h-5 text-dashboard-accent2" />
               <h4 className="text-dashboard-accent2 font-medium">Emergency Collections</h4>
             </div>
             
             <div className="flex items-center justify-between">
-              <div>
+              <div className="space-y-2">
                 <p className="text-2xl font-bold text-white">
                   £{paymentStats.emergencyCollections.totalCollected}
                 </p>
                 <p className="text-sm text-dashboard-muted">Total collected</p>
-                <p className="text-sm text-dashboard-accent1 mt-1">
-                  {paymentStats.emergencyCollections.completed}/{paymentStats.totalMembers} members paid
-                </p>
-                {paymentStats.recentActivity.lastPaymentDate && (
-                  <p className="text-sm text-dashboard-accent2 mt-2">
-                    Last payment: {formatDate(paymentStats.recentActivity.lastPaymentDate)}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 text-sm text-dashboard-accent1">
+                  <Users className="w-4 h-4" />
+                  <span>{paymentStats.emergencyCollections.completed}/{paymentStats.totalMembers} paid</span>
+                </div>
               </div>
               <div className="w-16 h-16">
                 <CircularProgressbar
@@ -209,46 +206,80 @@ const CollectorPaymentSummary = ({ collectorName }: PaymentSummaryProps) => {
               </div>
             </div>
           </div>
+
+          {/* Recent Activity Card */}
+          <div className="glass-card p-4 relative overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-dashboard-accent3" />
+              <h4 className="text-dashboard-accent3 font-medium">Recent Activity</h4>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <p className="text-2xl font-bold text-white">
+                  {paymentStats.recentActivity.recentPayments}
+                </p>
+                <p className="text-sm text-dashboard-muted">payments in last 30 days</p>
+              </div>
+              {paymentStats.recentActivity.lastPaymentDate && (
+                <div className="flex items-center gap-2 text-sm text-dashboard-accent2">
+                  <Clock className="w-4 h-4" />
+                  <span>Last payment: {formatDate(paymentStats.recentActivity.lastPaymentDate)}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Card>
 
       <Card className="glass-card p-6">
-        <h3 className="text-xl font-medium text-white mb-6">Additional Statistics</h3>
+        <h3 className="text-xl font-medium text-white mb-6">Collection Statistics</h3>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-5 h-5 text-dashboard-accent1" />
-              <h4 className="text-dashboard-accent1 font-medium">Membership Status</h4>
+              <h4 className="text-dashboard-accent1 font-medium">Members</h4>
             </div>
             <p className="text-xl font-bold text-white">
-              {paymentStats?.membershipStats.active} Active
+              {paymentStats.membershipStats.active} Active
             </p>
             <p className="text-sm text-dashboard-muted">
-              {paymentStats?.membershipStats.inactive} Inactive
+              {paymentStats.membershipStats.inactive} Inactive
             </p>
           </div>
 
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <PoundSterling className="w-5 h-5 text-dashboard-accent2" />
-              <h4 className="text-dashboard-accent2 font-medium">Pending Payments</h4>
+              <h4 className="text-dashboard-accent2 font-medium">Pending</h4>
             </div>
             <p className="text-xl font-bold text-white">
-              £{paymentStats?.pendingPayments.amount || 0}
+              £{paymentStats.pendingPayments.amount}
             </p>
             <p className="text-sm text-dashboard-muted">
-              {paymentStats?.pendingPayments.count || 0} payments pending
+              {paymentStats.pendingPayments.count} requests
             </p>
           </div>
 
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="w-5 h-5 text-dashboard-accent1" />
-              <h4 className="text-dashboard-accent1 font-medium">New Members</h4>
+              <AlertCircle className="w-5 h-5 text-dashboard-warning" />
+              <h4 className="text-dashboard-warning font-medium">Overdue</h4>
             </div>
             <p className="text-xl font-bold text-white">
-              {paymentStats?.membershipStats.newMembers}
+              {paymentStats.yearlyPayments.overdue}
+            </p>
+            <p className="text-sm text-dashboard-muted">payments pending</p>
+          </div>
+
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-5 h-5 text-dashboard-accent3" />
+              <h4 className="text-dashboard-accent3 font-medium">New Members</h4>
+            </div>
+            <p className="text-xl font-bold text-white">
+              {paymentStats.membershipStats.newMembers}
             </p>
             <p className="text-sm text-dashboard-muted">Last 30 days</p>
           </div>

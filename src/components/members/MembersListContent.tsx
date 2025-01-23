@@ -9,22 +9,22 @@ interface MembersListContentProps {
   members: Member[];
   isLoading: boolean;
   userRole: string | null;
-  onPaymentClick: (memberId: string) => void;
-  onEditClick: (memberId: string) => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  onEditClick: (memberId: string) => void;
+  onDeleteClick: (memberId: string) => void;
 }
 
 const MembersListContent = ({
   members,
   isLoading,
   userRole,
-  onPaymentClick,
-  onEditClick,
   currentPage,
   totalPages,
   onPageChange,
+  onEditClick,
+  onDeleteClick,
 }: MembersListContentProps) => {
   return (
     <div className="space-y-4">
@@ -40,8 +40,8 @@ const MembersListContent = ({
                 key={member.id}
                 member={member}
                 userRole={userRole}
-                onPaymentClick={() => onPaymentClick(member.id)}
                 onEditClick={() => onEditClick(member.id)}
+                onDeleteClick={() => onDeleteClick(member.id)}
               />
             ))}
           </Accordion>

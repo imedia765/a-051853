@@ -90,6 +90,33 @@ export type Database = {
         }
         Relationships: []
       }
+      collector_role_fix_log: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          member_number: string
+          status: Database["public"]["Enums"]["collector_role_status"] | null
+        }
+        Insert: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          member_number: string
+          status?: Database["public"]["Enums"]["collector_role_status"] | null
+        }
+        Update: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          member_number?: string
+          status?: Database["public"]["Enums"]["collector_role_status"] | null
+        }
+        Relationships: []
+      }
       documentation: {
         Row: {
           created_at: string
@@ -123,6 +150,36 @@ export type Database = {
           title?: string
           updated_at?: string
           version?: string
+        }
+        Relationships: []
+      }
+      enhanced_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_updated_at: string | null
+          role_name: string
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_updated_at?: string | null
+          role_name: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_updated_at?: string | null
+          role_name?: string
+          updated_by?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -253,6 +310,71 @@ export type Database = {
           },
         ]
       }
+      maintenance_settings: {
+        Row: {
+          created_at: string | null
+          enabled_at: string | null
+          enabled_by: string | null
+          id: string
+          is_enabled: boolean | null
+          message: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          message?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          message?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      member_notes: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          note_text: string
+          note_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          note_text: string
+          note_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          note_text?: string
+          note_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_notes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           address: string | null
@@ -269,6 +391,7 @@ export type Database = {
           emergency_collection_created_at: string | null
           emergency_collection_due_date: string | null
           emergency_collection_status: string | null
+          failed_login_attempts: number | null
           family_member_dob: string | null
           family_member_gender: string | null
           family_member_name: string | null
@@ -276,9 +399,13 @@ export type Database = {
           full_name: string
           gender: string | null
           id: string
+          last_failed_attempt: string | null
+          locked_until: string | null
           marital_status: string | null
           member_number: string
           membership_type: string | null
+          password_reset_required: boolean | null
+          password_set_at: string | null
           payment_amount: number | null
           payment_date: string | null
           payment_notes: string | null
@@ -312,6 +439,7 @@ export type Database = {
           emergency_collection_created_at?: string | null
           emergency_collection_due_date?: string | null
           emergency_collection_status?: string | null
+          failed_login_attempts?: number | null
           family_member_dob?: string | null
           family_member_gender?: string | null
           family_member_name?: string | null
@@ -319,9 +447,13 @@ export type Database = {
           full_name: string
           gender?: string | null
           id?: string
+          last_failed_attempt?: string | null
+          locked_until?: string | null
           marital_status?: string | null
           member_number: string
           membership_type?: string | null
+          password_reset_required?: boolean | null
+          password_set_at?: string | null
           payment_amount?: number | null
           payment_date?: string | null
           payment_notes?: string | null
@@ -355,6 +487,7 @@ export type Database = {
           emergency_collection_created_at?: string | null
           emergency_collection_due_date?: string | null
           emergency_collection_status?: string | null
+          failed_login_attempts?: number | null
           family_member_dob?: string | null
           family_member_gender?: string | null
           family_member_name?: string | null
@@ -362,9 +495,13 @@ export type Database = {
           full_name?: string
           gender?: string | null
           id?: string
+          last_failed_attempt?: string | null
+          locked_until?: string | null
           marital_status?: string | null
           member_number?: string
           membership_type?: string | null
+          password_reset_required?: boolean | null
+          password_set_at?: string | null
           payment_amount?: number | null
           payment_date?: string | null
           payment_notes?: string | null
@@ -388,6 +525,7 @@ export type Database = {
       members_collectors: {
         Row: {
           active: boolean | null
+          auth_user_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -400,6 +538,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          auth_user_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -412,6 +551,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          auth_user_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -422,7 +562,15 @@ export type Database = {
           prefix?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "members_collectors_member_number_fkey"
+            columns: ["member_number"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["member_number"]
+          },
+        ]
       }
       monitoring_logs: {
         Row: {
@@ -451,6 +599,96 @@ export type Database = {
           metric_value?: number
           severity?: Database["public"]["Enums"]["severity_level"] | null
           timestamp?: string | null
+        }
+        Relationships: []
+      }
+      password_change_logs: {
+        Row: {
+          action: string | null
+          changed_at: string | null
+          changed_by: string | null
+          client_info: Json | null
+          error_code: string | null
+          error_details: string | null
+          id: string
+          ip_address: string | null
+          is_reset: boolean | null
+          reason: string | null
+          stack_trace: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          client_info?: Json | null
+          error_code?: string | null
+          error_details?: string | null
+          id?: string
+          ip_address?: string | null
+          is_reset?: boolean | null
+          reason?: string | null
+          stack_trace?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          client_info?: Json | null
+          error_code?: string | null
+          error_details?: string | null
+          id?: string
+          ip_address?: string | null
+          is_reset?: boolean | null
+          reason?: string | null
+          stack_trace?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      password_config: {
+        Row: {
+          created_at: string | null
+          id: string
+          lockout_duration: unknown | null
+          max_attempts: number | null
+          min_length: number | null
+          require_lowercase: boolean | null
+          require_number: boolean | null
+          require_special: boolean | null
+          require_uppercase: boolean | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lockout_duration?: unknown | null
+          max_attempts?: number | null
+          min_length?: number | null
+          require_lowercase?: boolean | null
+          require_number?: boolean | null
+          require_special?: boolean | null
+          require_uppercase?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lockout_duration?: unknown | null
+          max_attempts?: number | null
+          min_length?: number | null
+          require_lowercase?: boolean | null
+          require_number?: boolean | null
+          require_special?: boolean | null
+          require_uppercase?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -523,6 +761,102 @@ export type Database = {
             referencedColumns: ["member_number"]
           },
         ]
+      }
+      permission_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Json
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          permissions?: Json
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          permissions?: Json
+        }
+        Relationships: []
+      }
+      role_history: {
+        Row: {
+          change_type: string | null
+          changed_by_user_id: string | null
+          created_at: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          role_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          change_type?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          change_type?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sync_status: {
+        Row: {
+          error_message: string | null
+          id: string
+          last_attempted_sync_at: string | null
+          status: string | null
+          store_error: string | null
+          store_status: string | null
+          sync_started_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          last_attempted_sync_at?: string | null
+          status?: string | null
+          store_error?: string | null
+          store_status?: string | null
+          sync_started_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          last_attempted_sync_at?: string | null
+          status?: string | null
+          store_error?: string | null
+          store_status?: string | null
+          sync_started_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       system_announcements: {
         Row: {
@@ -602,6 +936,12 @@ export type Database = {
           status: string
           details: Json
         }[]
+      }
+      can_access_during_maintenance: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
       }
       check_api_health: {
         Args: Record<PropertyKey, never>
@@ -695,6 +1035,16 @@ export type Database = {
           details: Json
         }[]
       }
+      create_auth_user_for_collector: {
+        Args: {
+          member_num: string
+        }
+        Returns: string
+      }
+      create_auth_users_for_collectors: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_family_member_number: {
         Args: {
           p_parent_member_number: string
@@ -716,6 +1066,15 @@ export type Database = {
           hour_bucket: string
           operation: string
           count: number
+        }[]
+      }
+      get_collector_role_fix_report: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_processed: number
+          successful: number
+          failed: number
+          failure_details: Json
         }[]
       }
       get_rls_policies: {
@@ -743,13 +1102,24 @@ export type Database = {
           rls_enabled: boolean
         }[]
       }
-      is_admin: {
+      handle_failed_login: {
         Args: {
-          user_uid: string
+          member_number: string
         }
-        Returns: boolean
+        Returns: Json
       }
-      is_admin_user: {
+      handle_password_reset: {
+        Args: {
+          member_number: string
+          new_password: string
+          admin_user_id?: string
+          ip_address?: string
+          user_agent?: string
+          client_info?: Json
+        }
+        Returns: Json
+      }
+      is_admin: {
         Args: {
           user_uid: string
         }
@@ -761,8 +1131,28 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_system_in_maintenance: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_valid_member_number: {
+        Args: {
+          member_num: string
+        }
+        Returns: boolean
+      }
+      maintain_collector_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       perform_user_roles_sync: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      reset_failed_login: {
+        Args: {
+          member_number: string
+        }
         Returns: undefined
       }
       restore_from_backup: {
@@ -787,6 +1177,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      validate_password_complexity: {
+        Args: {
+          password: string
+        }
+        Returns: Json
+      }
       validate_user_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -798,8 +1194,20 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "collector" | "member"
-      audit_operation: "create" | "update" | "delete"
+      audit_operation:
+        | "create"
+        | "update"
+        | "delete"
+        | "INSERT"
+        | "UPDATE"
+        | "DELETE"
       backup_operation_type: "backup" | "restore"
+      collector_role_status:
+        | "started"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "created"
       monitoring_event_type:
         | "system_performance"
         | "api_latency"

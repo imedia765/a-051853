@@ -1,97 +1,93 @@
-import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEnhancedRoleAccess } from '@/hooks/useEnhancedRoleAccess';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { Toaster } from "@/components/ui/toaster";
-import { useAuthSession } from "@/hooks/useAuthSession";
-import ProtectedRoutes from "@/components/routing/ProtectedRoutes";
-import { useEnhancedRoleAccess } from "@/hooks/useEnhancedRoleAccess";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
-import { useEffect } from "react";
-import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
-import Login from "@/pages/Login";
+import { supabase } from "@/integrations/supabase/client";
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import Login from '@/pages/Login';
+import Index from '@/pages/Index';
+import ProtectedRoutes from '@/components/routing/ProtectedRoutes';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
-function AppContent() {
+function App() {
   const { session, loading: sessionLoading } = useAuthSession();
-  const { isLoading: rolesLoading, error: rolesError } = useEnhancedRoleAccess();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { isLoading: rolesLoading, hasRole } = useEnhancedRoleAccess();
+  const [maintenanceMode, setMaintenanceMode] = useState<{ enabled: boolean; message: string } | null>(null);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
-  console.log('App render state:', { 
-    sessionLoading, 
-    rolesLoading, 
+  const appState = useMemo(() => ({
+    sessionLoading,
+    rolesLoading,
     hasSession: !!session,
-    currentPath: location.pathname,
+    currentPath: window.location.pathname,
     timestamp: new Date().toISOString()
-  });
+  }), [sessionLoading, rolesLoading, session]);
 
   useEffect(() => {
-    if (!sessionLoading) {
-      console.log('Session check complete:', {
-        hasSession: !!session,
-        currentPath: location.pathname,
-        timestamp: new Date().toISOString()
-      });
+    console.log('App render state:', appState);
+  }, [appState]);
 
-      if (!session && location.pathname !== '/login') {
-        console.log('No session detected, redirecting to login');
-        navigate('/login', { replace: true });
-      } else if (session && location.pathname === '/login') {
-        console.log('Session detected on login page, redirecting to dashboard');
-        navigate('/', { replace: true });
+  useEffect(() => {
+    const checkMaintenanceMode = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('maintenance_settings')
+          .select('is_enabled, message')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking maintenance mode:', error);
+          return;
+        }
+
+        setMaintenanceMode(data ? {
+          enabled: data.is_enabled,
+          message: data.message
+        } : null);
+      } catch (error) {
+        console.error('Failed to check maintenance mode:', error);
+      } finally {
+        setMaintenanceLoading(false);
       }
-    }
-  }, [session, sessionLoading, navigate, location.pathname]);
+    };
 
-  if (rolesError) {
-    console.error('Role loading error:', rolesError);
-    toast({
-      title: "Error loading roles",
-      description: "There was a problem loading user roles. Please try again.",
-      variant: "destructive",
-    });
+    checkMaintenanceMode();
+  }, []);
+
+  // Only show loading during initial session check
+  if (sessionLoading && !session) {
+    return null;
   }
 
-  // Show loading state only during initial session check or when loading roles for authenticated users
-  const showLoading = (sessionLoading || (session && rolesLoading)) && location.pathname !== '/login';
-  
-  if (showLoading) {
-    console.log('Showing loading state:', {
-      sessionLoading,
-      rolesLoading,
-      pathname: location.pathname
-    });
+  // Show maintenance mode screen for non-admin users
+  if (!maintenanceLoading && maintenanceMode?.enabled && session && !hasRole('admin')) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-dashboard-dark">
-        <Loader2 className="w-8 h-8 animate-spin text-dashboard-accent1" />
+      <div className="min-h-screen bg-dashboard-dark flex items-center justify-center p-4">
+        <Alert className="max-w-2xl w-full bg-dashboard-card border-dashboard-error/50">
+          <AlertCircle className="h-6 w-6 text-dashboard-error" />
+          <AlertTitle className="text-2xl font-semibold text-white mb-4">
+            System Maintenance
+          </AlertTitle>
+          <AlertDescription className="text-lg text-dashboard-text">
+            {maintenanceMode.message || 'The system is currently undergoing maintenance. Please try again later.'}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <>
+    <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={<ProtectedRoutes session={session} />} />
+        <Route path="/login" element={!session ? <Login /> : <Navigate to="/" replace />} />
+        <Route path="/" element={<ProtectedRoutes session={session} />}>
+          <Route index element={<Index />} />
+        </Route>
       </Routes>
       <Toaster />
-    </>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
+    </Router>
   );
 }
 

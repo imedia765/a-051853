@@ -71,6 +71,11 @@ const PrintButtons = ({
       setIsGenerating(true);
       onGenerateStart?.();
 
+      // Generate master list PDF
+      const masterDoc = generateMembersPDF(allMembers, 'Master Members List');
+      masterDoc.save('master-members-list.pdf');
+
+      // Generate collector-wise PDFs
       await generateCollectorZip(allMembers, (current, total, collector) => {
         setProgress({ current, total, collector });
         console.log(`Processing collector ${collector} (${current}/${total})`);
@@ -78,13 +83,13 @@ const PrintButtons = ({
 
       toast({
         title: "Success",
-        description: "ZIP file with all collector reports generated successfully",
+        description: "Master list and collector reports generated successfully",
       });
     } catch (error) {
-      console.error('Error generating ZIP:', error);
+      console.error('Error generating PDFs:', error);
       toast({
         title: "Error",
-        description: "Failed to generate ZIP file",
+        description: "Failed to generate PDF files",
         variant: "destructive",
       });
     } finally {
@@ -109,7 +114,8 @@ const PrintButtons = ({
 
       console.log(`Generating PDF for ${name} with ${allCollectorMembers.length} members`);
       const doc = generateMembersPDF(allCollectorMembers, `Members List - Collector: ${name}`);
-      doc.save();
+      doc.save(`collector-${name.toLowerCase().replace(/\s+/g, '-')}-members.pdf`);
+      
       toast({
         title: "Success",
         description: "PDF report generated successfully",

@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from '@tanstack/react-query';
-import { clearAuthState, verifyMember, getAuthCredentials, handleSignInError } from './utils/authUtils';
-import { updateMemberWithAuthId, addMemberRole } from './utils/memberUtils';
+import { clearAuthState, verifyMember, handleSignInError } from './utils/authUtils';
+import { DatabaseFunctions } from '@/integrations/supabase/types/functions';
+
+type FailedLoginResponse = DatabaseFunctions['handle_failed_login']['Returns'];
 
 export const useLoginForm = () => {
   const [memberNumber, setMemberNumber] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -15,74 +18,105 @@ export const useLoginForm = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || !memberNumber.trim()) return;
+    if (loading || !memberNumber.trim() || !password.trim()) return;
     
     try {
       setLoading(true);
       const isMobile = window.innerWidth <= 768;
       console.log('Starting login process on device type:', isMobile ? 'mobile' : 'desktop');
 
-      // Skip clearing auth state on login attempt
+      // Check maintenance mode first
+      const { data: maintenanceData, error: maintenanceError } = await supabase
+        .from('maintenance_settings')
+        .select('is_enabled, message')
+        .single();
+
+      if (maintenanceError) {
+        console.error('Error checking maintenance mode:', maintenanceError);
+        throw new Error('Unable to verify system status');
+      }
+
+      // If in maintenance, verify if user is admin before proceeding
+      if (maintenanceData?.is_enabled) {
+        console.log('System in maintenance mode, checking admin credentials');
+        const email = `${memberNumber.toLowerCase()}@temp.com`;
+        
+        // Try admin login
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          console.log('Login failed during maintenance mode');
+          throw new Error(maintenanceData.message || 'System is temporarily offline for maintenance');
+        }
+
+        // Check if user is admin
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', signInData.user.id);
+
+        const isAdmin = roles?.some(r => r.role === 'admin');
+        
+        if (!isAdmin) {
+          console.log('Non-admin access attempted during maintenance');
+          throw new Error(maintenanceData.message || 'System is temporarily offline for maintenance');
+        }
+
+        console.log('Admin access granted during maintenance mode');
+      }
+
+      // Regular login flow
       const member = await verifyMember(memberNumber);
-      const { email, password } = getAuthCredentials(memberNumber);
+      const email = `${memberNumber.toLowerCase()}@temp.com`;
       
       console.log('Attempting sign in with:', { email });
       
-      // Try to sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      // If sign in fails due to invalid credentials, try to sign up
-      if (signInError && signInError.message.includes('Invalid login credentials')) {
-        console.log('Sign in failed, attempting signup');
-        
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              member_number: memberNumber,
-            }
-          }
-        });
+      if (signInError) {
+        // Handle failed login attempt
+        const { data: failedLoginData, error: failedLoginError } = await supabase
+          .rpc('handle_failed_login', { member_number: memberNumber });
 
-        if (signUpError) {
-          console.error('Signup error:', signUpError);
-          throw signUpError;
+        if (failedLoginError) throw failedLoginError;
+
+        const typedFailedLoginData = failedLoginData as FailedLoginResponse;
+
+        if (typedFailedLoginData.locked) {
+          throw new Error(`Account locked. Too many failed attempts. Please try again after ${typedFailedLoginData.lockout_duration}`);
         }
 
-        if (signUpData.user) {
-          await updateMemberWithAuthId(member.id, signUpData.user.id);
-          await addMemberRole(signUpData.user.id);
-
-          console.log('Member updated and role assigned, attempting final sign in');
-          
-          // Final sign in attempt after successful signup
-          const { data: finalSignInData, error: finalSignInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (finalSignInError) {
-            console.error('Final sign in error:', finalSignInError);
-            throw finalSignInError;
-          }
-
-          if (!finalSignInData?.session) {
-            throw new Error('Failed to establish session after signup');
-          }
-        }
-      } else if (signInError) {
-        await handleSignInError(signInError, email, password);
+        throw new Error('Invalid member number or password');
       }
 
-      // Clear any existing queries before proceeding
+      // Reset failed login attempts on successful login
+      await supabase.rpc('reset_failed_login', { member_number: memberNumber });
+
+      // Check if password reset is required
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('password_reset_required')
+        .eq('member_number', memberNumber)
+        .maybeSingle();
+
+      if (memberData?.password_reset_required) {
+        toast({
+          title: "Password reset required",
+          description: "Please set a new password for your account",
+        });
+        // TODO: Implement password reset flow
+        return;
+      }
+
       await queryClient.cancelQueries();
       await queryClient.clear();
 
-      // Verify session is established
       console.log('Verifying session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
@@ -104,7 +138,6 @@ export const useLoginForm = () => {
         description: "Welcome back!",
       });
 
-      // Use replace to prevent back button issues
       if (isMobile) {
         window.location.href = '/';
       } else {
@@ -113,21 +146,9 @@ export const useLoginForm = () => {
     } catch (error: any) {
       console.error('Login error:', error);
       
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (error.message.includes('Member not found')) {
-        errorMessage = 'Member number not found or inactive';
-      } else if (error.message.includes('Invalid login credentials')) {
-        errorMessage = 'Invalid member number. Please try again.';
-      } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = 'Please verify your email before logging in';
-      } else if (error.message.includes('refresh_token_not_found')) {
-        errorMessage = 'Session expired. Please try logging in again.';
-      }
-      
       toast({
         title: "Login failed",
-        description: errorMessage,
+        description: error.message || 'An unexpected error occurred',
         variant: "destructive",
       });
     } finally {
@@ -137,7 +158,9 @@ export const useLoginForm = () => {
 
   return {
     memberNumber,
+    password,
     setMemberNumber,
+    setPassword,
     loading,
     handleLogin,
   };

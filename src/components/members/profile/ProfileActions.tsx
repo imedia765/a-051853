@@ -1,32 +1,77 @@
 import { Button } from "@/components/ui/button";
-import { Edit, CreditCard } from "lucide-react";
+import { Edit, PhoneCall } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import BankDetails from "../payment/BankDetails";
 
 interface ProfileActionsProps {
   userRole: string;
   onEditClick: () => void;
-  onPaymentClick: () => void;
+  collectorInfo?: {
+    name?: string | null;
+    phone?: string | null;
+  };
+  memberNumber?: string;
 }
 
-const ProfileActions = ({ userRole, onEditClick, onPaymentClick }: ProfileActionsProps) => {
+const ProfileActions = ({ 
+  userRole, 
+  onEditClick,
+  collectorInfo,
+  memberNumber
+}: ProfileActionsProps) => {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-4">
       {(userRole === 'collector' || userRole === 'admin' || userRole === 'member') && (
         <Button
           onClick={onEditClick}
-          className="w-full bg-dashboard-accent2 hover:bg-dashboard-accent2/80 text-white transition-colors"
+          variant="outline"
+          className="w-full border-dashboard-accent2/50 hover:bg-dashboard-accent2/10"
         >
           <Edit className="w-4 h-4 mr-2" />
           Edit Profile
         </Button>
       )}
       
-      <Button
-        onClick={onPaymentClick}
-        className="w-full bg-dashboard-accent1 hover:bg-dashboard-accent1/80 text-white transition-colors"
-      >
-        <CreditCard className="w-4 h-4 mr-2" />
-        Make Payment
-      </Button>
+      {userRole === 'member' && collectorInfo ? (
+        <div className="space-y-4">
+          <Alert className="bg-dashboard-accent1/10 border-dashboard-accent1/20">
+            <AlertDescription className="text-dashboard-text">
+              Please contact your collector to make a payment:
+              <div className="mt-2 font-medium">
+                {collectorInfo.name && <p>Collector: {collectorInfo.name}</p>}
+                {collectorInfo.phone && <p>Phone: {collectorInfo.phone}</p>}
+              </div>
+            </AlertDescription>
+          </Alert>
+          <Button
+            onClick={() => {
+              if (collectorInfo.phone) {
+                window.location.href = `tel:${collectorInfo.phone}`;
+              }
+            }}
+            className="w-full bg-dashboard-accent3 hover:bg-dashboard-accent3/80 text-white transition-colors"
+            disabled={!collectorInfo.phone}
+          >
+            <PhoneCall className="w-4 h-4 mr-2" />
+            Call Collector
+          </Button>
+          <div className="mt-6">
+            <BankDetails memberNumber={memberNumber} />
+          </div>
+        </div>
+      ) : (
+        userRole === 'admin' && (
+          <div className="mt-6">
+            <BankDetails memberNumber={memberNumber} />
+          </div>
+        )
+      )}
+
+      {userRole === 'collector' && (
+        <div className="mt-6">
+          <BankDetails memberNumber={memberNumber} />
+        </div>
+      )}
     </div>
   );
 };
