@@ -74,7 +74,7 @@ export const usePasswordChange = (
       setIsSubmitting(true);
       
       // Call the RPC function
-      const { data: responseData, error: rpcError }: PasswordChangeResponse = await supabase.rpc(
+      const response: PasswordChangeResponse = await supabase.rpc(
         'handle_password_reset',
         {
           member_number: memberNumber,
@@ -93,28 +93,30 @@ export const usePasswordChange = (
         }
       );
 
-      if (rpcError) {
-        console.error("[PasswordChange] RPC Error:", rpcError);
+      logPasswordChangeResponse(response, isFirstTimeLogin);
+
+      if (response.error) {
+        console.error("[PasswordChange] RPC Error:", response.error);
         toast.dismiss(toastId);
         
-        if (rpcError.message.includes("invalid auth credentials")) {
+        if (response.error.message.includes("invalid auth credentials")) {
           toast.error("Current password is incorrect");
         } else {
-          toast.error(rpcError.message || "Failed to change password");
+          toast.error(response.error.message || "Failed to change password");
         }
         return;
       }
 
-      if (!responseData || typeof responseData.success !== 'boolean') {
-        console.error("[PasswordChange] Invalid response format:", responseData);
+      if (!response.data || typeof response.data.success !== 'boolean') {
+        console.error("[PasswordChange] Invalid response format:", response.data);
         toast.dismiss(toastId);
         toast.error("Unexpected server response");
         return;
       }
 
-      if (!responseData.success) {
+      if (!response.data.success) {
         toast.dismiss(toastId);
-        toast.error(responseData.error || "Failed to change password");
+        toast.error(response.data.error || "Failed to change password");
         return;
       }
 
