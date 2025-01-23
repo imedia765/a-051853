@@ -2,7 +2,13 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { PasswordFormValues, PasswordChangeResponse, logPasswordChangeAttempt, logPasswordChangeResponse } from "./types";
+import { 
+  PasswordFormValues, 
+  PasswordChangeResponse, 
+  PasswordChangeData,
+  logPasswordChangeAttempt, 
+  logPasswordChangeResponse 
+} from "./types";
 
 const MAX_RETRIES = 3;
 const INITIAL_DELAY = 2000;
