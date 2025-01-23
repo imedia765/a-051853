@@ -76,7 +76,7 @@ export const usePasswordChange = (
     try {
       setIsSubmitting(true);
       
-      const { data, error } = await supabase.rpc(
+      const { data: rpcData, error } = await supabase.rpc(
         'handle_password_reset',
         {
           member_number: memberNumber,
@@ -95,7 +95,7 @@ export const usePasswordChange = (
       );
 
       const response: PasswordChangeResponse = { 
-        data: data as PasswordChangeData, 
+        data: rpcData as PasswordChangeData, 
         error 
       };
       logPasswordChangeResponse(response);
@@ -113,7 +113,7 @@ export const usePasswordChange = (
       }
 
       if (!response.data || typeof response.data.success !== 'boolean') {
-        console.error("[PasswordChange] Invalid response format:", data);
+        console.error("[PasswordChange] Invalid response format:", rpcData);
         toast.dismiss(toastId);
         toast.error("Unexpected server response");
         return;
