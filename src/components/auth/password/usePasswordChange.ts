@@ -26,7 +26,6 @@ export const usePasswordChange = (
         timestamp: new Date().toISOString()
       });
 
-      // Add exponential backoff delay
       if (retryCount > 0) {
         const delay = INITIAL_DELAY * Math.pow(2, retryCount - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -71,16 +70,16 @@ export const usePasswordChange = (
     try {
       setIsSubmitting(true);
       
-      const response: PasswordChangeResponse = await supabase.rpc(
+      const { data, error } = await supabase.rpc(
         'handle_password_reset',
         {
           member_number: memberNumber,
           new_password: values.newPassword,
-          current_password: values.currentPassword || null,
+          current_password: values.currentPassword,
           ip_address: window.location.hostname,
           user_agent: navigator.userAgent,
           client_info: {
-            currentPassword: values.currentPassword || null,
+            currentPassword: values.currentPassword,
             userAgent: navigator.userAgent,
             platform: navigator.platform,
             language: navigator.language,
@@ -89,37 +88,36 @@ export const usePasswordChange = (
         }
       );
 
+      const response: PasswordChangeResponse = { data, error };
       logPasswordChangeResponse(response);
 
-      if (response.error) {
-        console.error("[PasswordChange] RPC Error:", response.error);
+      if (error) {
+        console.error("[PasswordChange] RPC Error:", error);
         toast.dismiss(toastId);
         
-        if (response.error.message.includes("invalid auth credentials")) {
+        if (error.message.includes("invalid auth credentials")) {
           toast.error("Current password is incorrect");
         } else {
-          toast.error(response.error.message || "Failed to change password");
+          toast.error(error.message || "Failed to change password");
         }
         return;
       }
 
-      if (!response.data || typeof response.data.success !== 'boolean') {
-        console.error("[PasswordChange] Invalid response format:", response.data);
+      if (!data || typeof data.success !== 'boolean') {
+        console.error("[PasswordChange] Invalid response format:", data);
         toast.dismiss(toastId);
         toast.error("Unexpected server response");
         return;
       }
 
-      if (!response.data.success) {
+      if (!data.success) {
         toast.dismiss(toastId);
-        toast.error(response.data.error || "Failed to change password");
+        toast.error(data.error || "Failed to change password");
         return;
       }
 
-      // Wait for password update to propagate
       await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
 
-      // Attempt re-authentication with new password
       const email = `${memberNumber.toLowerCase()}@temp.com`;
       console.log("[PasswordChange] Attempting re-authentication", { 
         email,
@@ -133,7 +131,6 @@ export const usePasswordChange = (
         toast.dismiss(toastId);
         toast.success("Password changed successfully! Please log in again.");
         
-        // Sign out and redirect even if re-auth fails
         await supabase.auth.signOut();
         navigate('/login');
         return;
@@ -143,10 +140,8 @@ export const usePasswordChange = (
       toast.dismiss(toastId);
       toast.success("Password changed successfully!");
 
-      // Call onSuccess callback
       onSuccess?.();
       
-      // Sign out and redirect
       await supabase.auth.signOut();
       navigate('/login');
 
