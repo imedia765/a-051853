@@ -15,9 +15,10 @@ interface PasswordInputProps {
   name: keyof PasswordFormValues;
   label: string;
   disabled?: boolean;
+  required?: boolean;
 }
 
-export const PasswordInput = ({ form, name, label, disabled }: PasswordInputProps) => {
+export const PasswordInput = ({ form, name, label, disabled, required }: PasswordInputProps) => {
   return (
     <FormField
       control={form.control}
@@ -30,6 +31,7 @@ export const PasswordInput = ({ form, name, label, disabled }: PasswordInputProp
               {...field} 
               type="password"
               disabled={disabled}
+              required={required}
               className="bg-dashboard-dark border-dashboard-cardBorder text-dashboard-text focus:border-dashboard-accent1" 
             />
           </FormControl>
