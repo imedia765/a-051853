@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PasswordFormValues, PasswordChangeResponse, PasswordChangeResult } from "./types";
+import { PasswordFormValues, PasswordChangeResponse, PasswordChangeResult, logPasswordChangeAttempt, logPasswordChangeResponse } from "./types";
 import { useNavigate } from "react-router-dom";
 
 const MAX_RETRIES = 3;
@@ -16,7 +16,11 @@ const isPasswordChangeResult = (data: unknown): data is PasswordChangeResult => 
   );
 };
 
-export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolean) => {
+export const usePasswordChange = (
+  memberNumber: string, 
+  isFirstTimeLogin: boolean,
+  onSuccess?: () => void
+) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -51,11 +55,7 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
   };
 
   const handlePasswordChange = async (values: PasswordFormValues) => {
-    console.log("[PasswordChange] Starting password change process", {
-      memberNumber,
-      isFirstTimeLogin,
-      timestamp: new Date().toISOString()
-    });
+    logPasswordChangeAttempt(memberNumber, isFirstTimeLogin, values);
 
     // Skip current password validation for first-time login
     if (!isFirstTimeLogin && !values.currentPassword) {
@@ -91,6 +91,8 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
           currentPassword: isFirstTimeLogin ? undefined : values.currentPassword
         })
       });
+
+      logPasswordChangeResponse(response as PasswordChangeResponse, isFirstTimeLogin);
 
       // Handle RPC errors
       if (response.error) {
@@ -137,6 +139,9 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
 
       toast.dismiss(loadingToast);
       toast.success("Password changed successfully!");
+
+      // Call onSuccess before navigating
+      onSuccess?.();
       
       // Always redirect to login to ensure a fresh session
       setTimeout(() => {

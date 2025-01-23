@@ -38,6 +38,7 @@ interface PasswordFormProps {
   isFirstTimeLogin: boolean;
   memberNumber: string;
   onCancel: () => void;
+  onSuccess?: () => void;
 }
 
 export const PasswordForm = ({
@@ -45,6 +46,7 @@ export const PasswordForm = ({
   isFirstTimeLogin,
   memberNumber,
   onCancel,
+  onSuccess,
 }: PasswordFormProps) => {
   const passwordSchema = React.useMemo(() => {
     return createPasswordSchema(isFirstTimeLogin).refine((data) => {
@@ -66,12 +68,13 @@ export const PasswordForm = ({
     mode: "onChange",
   });
 
-  const { isSubmitting, handlePasswordChange } = usePasswordChange(memberNumber, isFirstTimeLogin);
+  const { isSubmitting, handlePasswordChange } = usePasswordChange(memberNumber, isFirstTimeLogin, onSuccess);
 
   const handleFormSubmit = async (values: PasswordFormValues) => {
     try {
       if (onSubmit) {
         await onSubmit(values);
+        onSuccess?.();
       } else {
         await handlePasswordChange(values);
       }

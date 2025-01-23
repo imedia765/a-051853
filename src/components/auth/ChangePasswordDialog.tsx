@@ -52,8 +52,17 @@ const ChangePasswordDialog = ({
     }
   }, [open, memberNumber]);
 
+  const handleSuccess = () => {
+    // Close the dialog on successful password change
+    console.log("[ChangePasswordDialog] Password change successful, closing dialog");
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={isFirstTimeLogin ? undefined : onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={isFirstTimeLogin ? undefined : onOpenChange}
+    >
       <DialogContent className="w-full max-w-md bg-dashboard-card border border-dashboard-cardBorder">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-dashboard-accent1 flex items-center gap-2">
@@ -72,6 +81,7 @@ const ChangePasswordDialog = ({
           memberNumber={memberNumber}
           isFirstTimeLogin={isFirstTimeLogin}
           onCancel={() => onOpenChange(false)}
+          onSuccess={handleSuccess}
         />
       </DialogContent>
     </Dialog>
