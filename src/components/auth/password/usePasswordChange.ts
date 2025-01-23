@@ -2,13 +2,33 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { PasswordFormValues, PasswordChangeResponse, logPasswordChangeAttempt, logPasswordChangeResponse } from "./types";
+import { PasswordFormValues, PasswordChangeResponse } from "./types";
+
+interface PasswordChangeData {
+  success: boolean;
+  message?: string;
+  error?: string;
+  code?: string;
+  details?: {
+    timestamp: string;
+    [key: string]: any;
+  };
+}
 
 const MAX_RETRIES = 3;
 
 export const usePasswordChange = (memberNumber: string, onSuccess?: () => void) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  const isPasswordChangeData = (data: any): data is PasswordChangeData => {
+    return (
+      data &&
+      typeof data === 'object' &&
+      'success' in data &&
+      typeof data.success === 'boolean'
+    );
+  };
 
   const handlePasswordChange = async (values: PasswordFormValues, retryCount = 0) => {
     if (retryCount >= MAX_RETRIES) {
@@ -20,8 +40,6 @@ export const usePasswordChange = (memberNumber: string, onSuccess?: () => void) 
     const toastId = toast.loading("Changing password...");
 
     try {
-      logPasswordChangeAttempt(memberNumber, values);
-
       const { data: rpcData, error } = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
@@ -35,24 +53,6 @@ export const usePasswordChange = (memberNumber: string, onSuccess?: () => void) 
         }
       });
 
-      // Type guard to validate response shape
-      const isPasswordChangeData = (data: any): data is PasswordChangeData => {
-        return (
-          data &&
-          typeof data === 'object' &&
-          'success' in data &&
-          typeof data.success === 'boolean'
-        );
-      };
-
-      // Create response object with proper typing
-      const response: PasswordChangeResponse = {
-        data: isPasswordChangeData(rpcData) ? rpcData : null,
-        error
-      };
-
-      logPasswordChangeResponse(response);
-
       if (error) {
         console.error("[PasswordChange] Error:", error);
         toast.dismiss(toastId);
@@ -65,10 +65,10 @@ export const usePasswordChange = (memberNumber: string, onSuccess?: () => void) 
         return;
       }
 
-      if (!response.data?.success) {
-        console.error("[PasswordChange] Invalid response:", response);
+      if (!isPasswordChangeData(rpcData) || !rpcData.success) {
+        console.error("[PasswordChange] Invalid response:", rpcData);
         toast.dismiss(toastId);
-        toast.error(response.data?.message || "Failed to change password");
+        toast.error(isPasswordChangeData(rpcData) ? rpcData.message || "Failed to change password" : "Invalid response from server");
         return;
       }
 
