@@ -18,13 +18,7 @@ export interface PasswordInputProps {
   required?: boolean;
 }
 
-export const PasswordInput = ({ 
-  form, 
-  name, 
-  label, 
-  disabled,
-  required 
-}: PasswordInputProps) => {
+export const PasswordInput = ({ form, name, label, disabled, required }: PasswordInputProps) => {
   return (
     <FormField
       control={form.control}

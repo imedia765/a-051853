@@ -22,7 +22,6 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
         console.log("[PasswordChange] Re-authentication attempt failed:", { retryCount, error });
         
         if (retryCount < MAX_RETRIES) {
-          // Wait longer between each retry
           await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY * (retryCount + 1)));
           return attemptReauthentication(email, password, retryCount + 1);
         }
@@ -63,7 +62,6 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
       setIsSubmitting(true);
       const loadingToast = toast.loading("Changing password...");
 
-      // Call the RPC function
       const { data: rpcData, error: rpcError } = await supabase.rpc('handle_password_reset', {
         member_number: memberNumber,
         new_password: values.newPassword,
@@ -76,9 +74,8 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
           isFirstTimeLogin,
           currentPassword: isFirstTimeLogin ? undefined : values.currentPassword
         })
-      });
+      }) as PasswordChangeResponse;
 
-      // Handle RPC errors
       if (rpcError) {
         console.error("[PasswordChange] RPC Error:", rpcError);
         toast.dismiss(loadingToast);
@@ -86,7 +83,6 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
         return;
       }
 
-      // Validate RPC response
       if (!rpcData || typeof rpcData !== 'object') {
         console.error("[PasswordChange] Invalid RPC response:", rpcData);
         toast.dismiss(loadingToast);
@@ -102,25 +98,19 @@ export const usePasswordChange = (memberNumber: string, isFirstTimeLogin: boolea
         return;
       }
 
-      // Initial delay before first re-authentication attempt
       await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
 
-      // Attempt re-authentication with new password
       const email = `${memberNumber.toLowerCase()}@temp.com`;
       const reauthSuccess = await attemptReauthentication(email, values.newPassword);
 
       if (!reauthSuccess) {
         console.warn("[PasswordChange] Re-authentication failed after password change");
-        // Even if re-auth fails, we'll still consider the password change successful
-        // since the RPC call succeeded
       }
 
       toast.dismiss(loadingToast);
       toast.success("Password changed successfully!");
       
-      // Always redirect to login to ensure a fresh session
       setTimeout(() => {
-        // Sign out current session before redirecting
         supabase.auth.signOut().finally(() => {
           navigate('/login');
         });
